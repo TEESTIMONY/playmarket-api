@@ -1,0 +1,26 @@
+# Django and REST Framework
+Django==6.0.1
+djangorestframework==3.16.1
+
+# Database
+psycopg2-binary==2.9.10
+dj-database-url==2.3.0
+
+# CORS support
+django-cors-headers==4.9.0
+
+# WSGI server for production
+gunicorn==23.0.0
+
+# Environment variables
+python-dotenv==1.1.1
+
+# Database migrations
+asgiref==3.11.0
+
+# Timezone support
+tzdata==2025.3
+
+# Development dependencies (optional, but useful)
+# For local development only - can be removed for production
+# django-debug-toolbar==4.4.6

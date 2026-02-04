@@ -1,0 +1,1 @@
+web: gunicorn playmarket.wsgi:application

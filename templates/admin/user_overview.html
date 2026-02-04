@@ -1,0 +1,449 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static admin_list %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+    <a href="{% url 'admin:index' %}">{% trans 'Home' %}</a>
+    &rsaquo; <a href="{% url 'admin:auth_user_changelist' %}">{% trans 'Users' %}</a>
+    &rsaquo; <a href="{% url 'admin:auth_user_change' user.id %}">{{ user.username }}</a>
+    &rsaquo; {% trans 'User Overview' %}
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="user-overview">
+    <h1>{{ title }}</h1>
+    
+    <!-- User Summary Card -->
+    <div class="card user-summary">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <h4>User Information</h4>
+                    <p><strong>Username:</strong> {{ user.username }}</p>
+                    <p><strong>Email:</strong> {{ user.email }}</p>
+                    <p><strong>Joined:</strong> {{ user.date_joined|date:"M d, Y H:i" }}</p>
+                    <p><strong>Last Login:</strong> {{ user.last_login|date:"M d, Y H:i"|default:"Never" }}</p>
+                </div>
+                <div class="col-md-3">
+                    <h4>Coin Balance</h4>
+                    <div class="balance-card">
+                        <h2 class="text-success">{{ coin_balance }} <small>coins</small></h2>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <h4>Earnings Summary</h4>
+                    <p><strong>Total Earned:</strong> <span class="text-success">{{ total_earned }} coins</span></p>
+                    <p><strong>Total Redeemed:</strong> <span class="text-info">{{ total_redeemed }} coins</span></p>
+                    <p><strong>Net Balance:</strong> <span class="text-primary">{{ coin_balance }} coins</span></p>
+                </div>
+                <div class="col-md-3">
+                    <h4>Quick Actions</h4>
+                    <a href="{% url 'admin:auth_user_change' user.id %}" class="btn btn-primary btn-sm">Edit User</a>
+                    <a href="{% url 'admin:bounties_bountyclaim_changelist' %}?user__id__exact={{ user.id }}" class="btn btn-info btn-sm">View Claims</a>
+                    <a href="{% url 'admin:bounties_cointransaction_changelist' %}?user__id__exact={{ user.id }}" class="btn btn-secondary btn-sm">View Transactions</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <!-- Recent Transactions -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Recent Transactions</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_transactions %}
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Amount</th>
+                                    <th>Description</th>
+                                    <th>Date</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for transaction in recent_transactions %}
+                                <tr>
+                                    <td>
+                                        <span class="badge badge-{{ transaction.transaction_type|slice:":3" }}">
+                                            {{ transaction.get_transaction_type_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if transaction.amount > 0 %}
+                                            <span class="text-success">+{{ transaction.amount }}</span>
+                                        {% else %}
+                                            <span class="text-danger">{{ transaction.amount }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ transaction.description|truncatechars:30 }}</td>
+                                    <td>{{ transaction.created_at|date:"M d, Y H:i" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <a href="{% url 'admin:bounties_cointransaction_changelist' %}?user__id__exact={{ user.id }}" class="btn btn-sm btn-outline-primary">View All Transactions</a>
+                    {% else %}
+                        <p class="text-muted">No transactions found.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Bounty Claims -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Bounty Claims</h5>
+                </div>
+                <div class="card-body">
+                    {% if bounty_claims %}
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Bounty ID</th>
+                                    <th>Bounty Title</th>
+                                    <th>Status</th>
+                                    <th>Submitted</th>
+                                    <th>Reward</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for claim in bounty_claims|slice:":5" %}
+                                <tr>
+                                    <td><code>{{ claim.bounty.id }}</code></td>
+                                    <td>{{ claim.bounty.title|truncatechars:25 }}</td>
+                                    <td>
+                                        <span class="badge badge-{% if claim.status == 'approved' %}success{% elif claim.status == 'rejected' %}danger{% else %}warning{% endif %}">
+                                            {{ claim.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ claim.submitted_at|date:"M d, Y"|default:"Not submitted" }}</td>
+                                    <td>{{ claim.bounty.reward }} coins</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <a href="{% url 'admin:bounties_bountyclaim_changelist' %}?user__id__exact={{ user.id }}" class="btn btn-sm btn-outline-primary">View All Claims</a>
+                    {% else %}
+                        <p class="text-muted">No bounty claims found.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Claimed Bounties (Approved) -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Claimed Bounties (Approved)</h5>
+                </div>
+                <div class="card-body">
+                    {% with claimed_bounties=bounty_claims|dictsort:"approved_at"|reverse %}
+                        {% if claimed_bounties %}
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Bounty ID</th>
+                                        <th>Bounty Title</th>
+                                        <th>Reward</th>
+                                        <th>Approved Date</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for claim in claimed_bounties %}
+                                        {% if claim.status == 'approved' %}
+                                        <tr>
+                                            <td><code>{{ claim.bounty.id }}</code></td>
+                                            <td>{{ claim.bounty.title|truncatechars:25 }}</td>
+                                            <td>{{ claim.bounty.reward }} coins</td>
+                                            <td>{{ claim.approved_at|date:"M d, Y H:i" }}</td>
+                                        </tr>
+                                        {% endif %}
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                            <a href="{% url 'admin:bounties_bountyclaim_changelist' %}?user__id__exact={{ user.id }}&status__exact=approved" class="btn btn-sm btn-outline-success">View All Approved</a>
+                        {% else %}
+                            <p class="text-muted">No approved bounties found.</p>
+                        {% endif %}
+                    {% endwith %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Submitted Bounties (All Statuses) -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Submitted Bounties (All Statuses)</h5>
+                </div>
+                <div class="card-body">
+                    {% if bounty_claims %}
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Bounty ID</th>
+                                    <th>Bounty Title</th>
+                                    <th>Status</th>
+                                    <th>Submitted</th>
+                                    <th>Reward</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for claim in bounty_claims %}
+                                <tr>
+                                    <td><code>{{ claim.bounty.id }}</code></td>
+                                    <td>{{ claim.bounty.title|truncatechars:25 }}</td>
+                                    <td>
+                                        <span class="badge badge-{% if claim.status == 'approved' %}success{% elif claim.status == 'rejected' %}danger{% else %}warning{% endif %}">
+                                            {{ claim.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ claim.submitted_at|date:"M d, Y"|default:"Not submitted" }}</td>
+                                    <td>{{ claim.bounty.reward }} coins</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <a href="{% url 'admin:bounties_bountyclaim_changelist' %}?user__id__exact={{ user.id }}" class="btn btn-sm btn-outline-primary">View All Submissions</a>
+                    {% else %}
+                        <p class="text-muted">No bounty submissions found.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- All User Bounties Summary -->
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>All Bounties Submitted by {{ user.username }}</h5>
+                </div>
+                <div class="card-body">
+                    {% if bounty_claims %}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>Summary Statistics</h6>
+                                <ul class="list-unstyled">
+                                    <li><strong>Total Submissions:</strong> {{ bounty_claims.count }}</li>
+                                    <li><strong>Approved:</strong> 
+                                        {% with approved_count=0 %}
+                                            {% for claim in bounty_claims %}
+                                                {% if claim.status == 'approved' %}
+                                                    {% with approved_count=approved_count|add:"1" %}{% endwith %}
+                                                {% endif %}
+                                            {% endfor %}
+                                            {{ approved_count }}
+                                        {% endwith %}
+                                    </li>
+                                    <li><strong>Submitted (Waiting):</strong> 
+                                        {% with submitted_count=0 %}
+                                            {% for claim in bounty_claims %}
+                                                {% if claim.status == 'submitted' %}
+                                                    {% with submitted_count=submitted_count|add:"1" %}{% endwith %}
+                                                {% endif %}
+                                            {% endfor %}
+                                            {{ submitted_count }}
+                                        {% endwith %}
+                                    </li>
+                                    <li><strong>Pending:</strong> 
+                                        {% with pending_count=0 %}
+                                            {% for claim in bounty_claims %}
+                                                {% if claim.status == 'pending' %}
+                                                    {% with pending_count=pending_count|add:"1" %}{% endwith %}
+                                                {% endif %}
+                                            {% endfor %}
+                                            {{ pending_count }}
+                                        {% endwith %}
+                                    </li>
+                                    <li><strong>Rejected:</strong> 
+                                        {% with rejected_count=0 %}
+                                            {% for claim in bounty_claims %}
+                                                {% if claim.status == 'rejected' %}
+                                                    {% with rejected_count=rejected_count|add:"1" %}{% endwith %}
+                                                {% endif %}
+                                            {% endfor %}
+                                            {{ rejected_count }}
+                                        {% endwith %}
+                                    </li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>Total Potential Earnings</h6>
+                                <ul class="list-unstyled">
+                                    <li><strong>Approved Rewards:</strong> 
+                                        {% with approved_total=0 %}
+                                            {% for claim in bounty_claims %}
+                                                {% if claim.status == 'approved' %}
+                                                    {% with approved_total=approved_total|add:claim.bounty.reward %}{% endwith %}
+                                                {% endif %}
+                                            {% endfor %}
+                                            {{ approved_total }} coins
+                                        {% endwith %}
+                                    </li>
+                                    <li><strong>Pending Rewards:</strong>
+                                        {% with pending_total=0 %}
+                                            {% for claim in bounty_claims %}
+                                                {% if claim.status == 'submitted' %}
+                                                    {% with pending_total=pending_total|add:claim.bounty.reward %}{% endwith %}
+                                                {% endif %}
+                                            {% endfor %}
+                                            {{ pending_total }} coins
+                                        {% endwith %}
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <hr>
+                        
+                        <h6>Detailed List of All Submissions</h6>
+                        <table class="table table-bordered">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Bounty ID</th>
+                                    <th>Bounty Title</th>
+                                    <th>Status</th>
+                                    <th>Submission Date</th>
+                                    <th>Approval Date</th>
+                                    <th>Reward</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for claim in bounty_claims %}
+                                <tr>
+                                    <td>{{ forloop.counter }}</td>
+                                    <td><code>{{ claim.bounty.id }}</code></td>
+                                    <td>{{ claim.bounty.title }}</td>
+                                    <td>
+                                        <span class="badge badge-{% if claim.status == 'approved' %}success{% elif claim.status == 'rejected' %}danger{% elif claim.status == 'submitted' %}info{% else %}warning{% endif %}">
+                                            {{ claim.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>{{ claim.submitted_at|date:"M d, Y H:i"|default:"Not submitted" }}</td>
+                                    <td>{{ claim.approved_at|date:"M d, Y H:i"|default:"Not approved" }}</td>
+                                    <td><strong>{{ claim.bounty.reward }} coins</strong></td>
+                                    <td>
+                                        <a href="{% url 'admin:bounties_bountyclaim_change' claim.id %}" class="btn btn-sm btn-outline-primary">View/Edit</a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p class="text-muted">This user has not submitted any bounties yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Debug Information -->
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Debug Information</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>User:</strong> {{ user.username }}</p>
+                    <p><strong>Bounty Claims Count:</strong> {{ bounty_claims.count }}</p>
+                    {% if bounty_claims %}
+                        <ul>
+                            {% for claim in bounty_claims %}
+                            <li>{{ claim.bounty.title }} (ID: {{ claim.bounty.id }}) - Status: {{ claim.status }}</li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p>No bounty claims found for this user.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <!-- Used Redeem Codes -->
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Used Redeem Codes</h5>
+                </div>
+                <div class="card-body">
+                    {% if used_codes %}
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Code</th>
+                                    <th>Coins</th>
+                                    <th>Used At</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for code in used_codes %}
+                                <tr>
+                                    <td><code>{{ code.code }}</code></td>
+                                    <td>{{ code.coins }} coins</td>
+                                    <td>{{ code.used_at|date:"M d, Y H:i" }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    {% else %}
+                        <p class="text-muted">No redeem codes used.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .user-summary {
+        margin-bottom: 20px;
+    }
+    
+    .balance-card {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        border-left: 4px solid #28a745;
+    }
+    
+    .badge-success { background-color: #28a745; }
+    .badge-danger { background-color: #dc3545; }
+    .badge-warning { background-color: #ffc107; }
+    .badge-info { background-color: #17a2b8; }
+    
+    .text-success { color: #28a745; }
+    .text-danger { color: #dc3545; }
+    .text-info { color: #17a2b8; }
+    .text-primary { color: #007bff; }
+    
+    .card {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .card-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    table th {
+        font-weight: 600;
+        color: #495057;
+    }
+    
+    .btn-sm {
+        margin-right: 5px;
+        margin-bottom: 5px;
+    }
+</style>
+{% endblock %}
