@@ -21,6 +21,11 @@ asgiref==3.11.0
 # Timezone support
 tzdata==2025.3
 
+# Authentication dependencies
+PyJWT==2.11.0
+requests==2.32.5
+firebase-admin==6.3.0
+
 # Development dependencies (optional, but useful)
 # For local development only - can be removed for production
 # django-debug-toolbar==4.4.6

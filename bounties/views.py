@@ -6,7 +6,7 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.contrib.auth.models import User
 from django.db import transaction, models
-from .models import Bounty, BountyClaim, RedeemCode, UserProfile
+from .models import Bounty, BountyClaim, RedeemCode, UserProfile, CoinTransaction
 from .serializers import (
     BountySerializer, BountyDetailSerializer,
     BountyClaimSerializer, BountyClaimCreateSerializer,

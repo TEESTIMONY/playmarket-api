@@ -156,8 +156,8 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Django REST Framework
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        'bounties.authentication.FirebaseAuthentication',
         'rest_framework.authentication.SessionAuthentication',
-        'rest_framework.authentication.BasicAuthentication',
     ],
     'DEFAULT_PERMISSION_CLASSES': [
         'rest_framework.permissions.IsAuthenticated',
@@ -175,6 +175,20 @@ CORS_ALLOW_CREDENTIALS = True
 # For development, allow all origins
 if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
+
+# Firebase Authentication settings
+FIREBASE_PROJECT_ID = os.environ.get('FIREBASE_PROJECT_ID', 'playmarket-6aae1')
+FIREBASE_PRIVATE_KEY_ID = os.environ.get('FIREBASE_PRIVATE_KEY_ID', '5edfdd840327b77c4eaa3fc412b6ecd22c1e458c')
+FIREBASE_PRIVATE_KEY = os.environ.get('FIREBASE_PRIVATE_KEY', '').replace('\\n', '\n')
+FIREBASE_CLIENT_EMAIL = os.environ.get('FIREBASE_CLIENT_EMAIL', 'firebase-adminsdk-fbsvc@playmarket-6aae1.iam.gserviceaccount.com')
+
+# JWT Authentication settings
+import datetime
+JWT_AUTH = {
+    'JWT_EXPIRATION_DELTA': datetime.timedelta(days=7),
+    'JWT_ALLOW_REFRESH': True,
+    'JWT_REFRESH_EXPIRATION_DELTA': datetime.timedelta(days=14),
+}
 
 # Production security settings
 if not DEBUG:
