@@ -16,7 +16,7 @@ services:
       - key: ALLOWED_HOSTS
         value: .onrender.com
       - key: CORS_ALLOWED_ORIGINS
-        value: https://playmarket-api.onrender.com,https://play-market-updated-2diq.vercel.app
+        value: https://playmarket-api.onrender.com,https://play-market-updated-new.vercel.app
       - key: DATABASE_URL
         fromDatabase:
           name: playmarket-db
@@ -27,6 +27,28 @@ services:
         value: admin@playmarket.com
       - key: DJANGO_SUPERUSER_PASSWORD
         value: SecureAdminPass123!
+      # Firebase Authentication Settings
+      - key: FIREBASE_PROJECT_ID
+        value: playmarket-6aae1
+      - key: FIREBASE_PRIVATE_KEY_ID
+        value: 72e2d2698f7519e99e173ca4e4fef199399fdf4e
+      - key: FIREBASE_PRIVATE_KEY
+        isSecret: true
+        value: "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKcwggSkAgEAAoIBAQC/Cujee7seyG+E\nuInv1vLGVZ39/E7AKGETq1hk0on9QmbMp6yc04feGh52vhiHbEbZ0Rk10tM0kLvb\npk7qO96sUO5dUxCNTSZWgMSinblKftsG/tXbu+cbv7dCaRQfViLdl4N3B9QlqJV3\nHaWwu0eZxqubOVvFJm0QAImcw0m98v2zlooZiUUSmNbUmBNnGfgbj51PrN7P8x7T\n00ygKFB/7AX1qp2oOUL2jMmkfgOHl0AkAX87TVqBs7yqJ6FPZq/K/qh9ifMR9ExV\nRUjR5tCEORMzh66flA5Wmnjubbq4Y+07e+hqn97tZ1DGoWKNNz/lukYj4tQmpX9w\n8Foa0BonAgMBAAECggEAFUk7vCUQ1YkOCpLd5P16tx2YCSeBMMju/sLjNPdTzQZb\n2jwT2rTOWTFo0+CHbs4M25KARW5+/kbiykJZXaDxGnBkDBLyxQO5HKn5VDMlukaw\nfzLgFOfMBDFUKSVNytYNSXUV0//pI+ReTv4x1XjF2BJPpu/OVAUINuBlyjPk4LHj\n9DSFJD7IrSOuCTWNxJKb88mVjdPATTvEqjhKikbOkKva/QXzdk1eo2B32dRr9s+E\n48FiEhtas9zHObWG58NQZ/2+8OQoTMlnSoFBmrPsiQl84m8hQe5i/9GjwSD1h/RJ\nqkD0gooK9MSg6EuLYx+uYwvSaGl4dnoA7iX0e8XwLQKBgQDdlbzfIPmzoL6LOigr\nuau6T/lIDVW+WV8V6X4BdGbyRRWVYHFaiPH+MnxqZHYh7XwjDxZmrzTOmo6AIzn4\nyr6jflvfLxQ3FTDykLVgSOy1yiZM4BmFdrpIKublMKLVLo2bw8ywyc5p0NO51d3G\n/J44Qvw0PYAdbeLajsgf1p52ewKBgQDcts3D4dEKuB06DITS47Fz5L15oRF6ugQR\nBqBofSFqTuBKlY2SUjrCxIcVG/5CWqm9i22xgAza/3/ztjx5/eWrG44ZPuz7yghi\nFeypkPsc3GT3Hii3Nno1TDII798UIje5EwvF6WF4bOc/5NiVY4K7hcD4PC1QIEa/\nCAwZvfQRRQKBgQDMUxcmaTHYAZGysJ36M+u2kag8WI+IRsD3Y6ddkAidvjZ418Wu\nxjjfPY6cTKbiAitF6NOvPEBlgv+ECPecAthnykzNMIxjfpb0FZwqfRRJTW6j1MGz\n4BdGFMl07bQ5AAR0bciB/JTp3jZeVmd65da/6oTFZzCL8pgNETxYn37foQKBgHG4\nQoalyBZUzMJHBvy90oWbGsEbay0nwMag+m874carg0cKjVoRwjLuHYeT18qKeiCu\nQUOObZE8yclhYQGd/wLNfManNGV7MByRnVG04J17NQ5aXLIhgJALhVAzf2YZR0q1\ndIBxggYRXoj+OVWnYwmJneaI4vQA3VK6K7nrtGBdAoGBAIFLLdcsFzgAG0J/CYa8\nKi/Wzggc+wxBpdgskQWmYwsTix2RlkCXpDol7VtmbjgfAKZ1YUdBNjnYrVvVRWRP\nExI81Ixcv08c/2xAOvGFNZUSGTpOMb7xhWMYTRFrvni+Rk2W0OgpeFLPaDmuXTpr\nZzmgu2Jt45k/DJGomR9BbDu3\n-----END PRIVATE KEY-----"
+      - key: FIREBASE_CLIENT_EMAIL
+        value: firebase-adminsdk-fbsvc@playmarket-6aae1.iam.gserviceaccount.com
+      - key: FIREBASE_CLIENT_ID
+        value: "106385586148280096311"
+      - key: FIREBASE_AUTH_URI
+        value: https://accounts.google.com/o/oauth2/auth
+      - key: FIREBASE_TOKEN_URI
+        value: https://oauth2.googleapis.com/token
+      - key: FIREBASE_AUTH_PROVIDER_X509_CERT_URL
+        value: https://www.googleapis.com/oauth2/v1/certs
+      - key: FIREBASE_CLIENT_X509_CERT_URL
+        value: https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-fbsvc%40playmarket-6aae1.iam.gserviceaccount.com
+      - key: FIREBASE_UNIVERSE_DOMAIN
+        value: googleapis.com
 
 databases:
   - name: playmarket-db
