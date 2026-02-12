@@ -18,14 +18,43 @@ from .models import UserProfile
 import firebase_admin
 from firebase_admin import credentials, auth
 
-# Initialize Firebase Admin SDK
+# Initialize Firebase Admin SDK using environment variables
 if not firebase_admin._apps:
     try:
-        # Use the service account key file
-        cred = credentials.Certificate('firebase_service_account.json')
-        firebase_admin.initialize_app(cred)
+        # Get Firebase credentials from environment variables
+        firebase_credentials = {
+            'type': os.environ.get('FIREBASE_TYPE', 'service_account'),
+            'project_id': os.environ.get('FIREBASE_PROJECT_ID', 'playmarket-6aae1'),
+            'private_key_id': os.environ.get('FIREBASE_PRIVATE_KEY_ID', '5edfdd840327b77c4eaa3fc412b6ecd22c1e458c'),
+            'private_key': os.environ.get('FIREBASE_PRIVATE_KEY', '').replace('\\n', '\n'),
+            'client_email': os.environ.get('FIREBASE_CLIENT_EMAIL', 'firebase-adminsdk-fbsvc@playmarket-6aae1.iam.gserviceaccount.com'),
+            'client_id': os.environ.get('FIREBASE_CLIENT_ID', ''),
+            'auth_uri': os.environ.get('FIREBASE_AUTH_URI', 'https://accounts.google.com/o/oauth2/auth'),
+            'token_uri': os.environ.get('FIREBASE_TOKEN_URI', 'https://oauth2.googleapis.com/token'),
+            'auth_provider_x509_cert_url': os.environ.get('FIREBASE_AUTH_PROVIDER_X509_CERT_URL', 'https://www.googleapis.com/oauth2/v1/certs'),
+            'client_x509_cert_url': os.environ.get('FIREBASE_CLIENT_X509_CERT_URL', ''),
+            'universe_domain': os.environ.get('FIREBASE_UNIVERSE_DOMAIN', 'googleapis.com')
+        }
+        
+        # Validate required credentials
+        required_fields = ['private_key', 'client_email', 'project_id']
+        missing_fields = [field for field in required_fields if not firebase_credentials[field]]
+        
+        if missing_fields:
+            print(f"Firebase initialization error: Missing required environment variables: {', '.join(missing_fields)}")
+            print("Please set the following environment variables:")
+            print("- FIREBASE_PRIVATE_KEY")
+            print("- FIREBASE_CLIENT_EMAIL") 
+            print("- FIREBASE_PROJECT_ID")
+        else:
+            # Initialize Firebase with credentials dictionary
+            cred = credentials.Certificate(firebase_credentials)
+            firebase_admin.initialize_app(cred)
+            print("Firebase Admin SDK initialized successfully using environment variables")
+            
     except Exception as e:
         print(f"Firebase initialization error: {e}")
+        print("Please ensure all Firebase environment variables are properly set")
 
 
 def generate_jwt_token(user):
