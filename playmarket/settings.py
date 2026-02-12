@@ -172,8 +172,15 @@ CORS_ALLOWED_ORIGINS = [origin.strip() for origin in CORS_ALLOWED_ORIGINS_ENV.sp
 
 CORS_ALLOW_CREDENTIALS = True
 
-# For development, allow all origins
+# For development, allow all localhost origins to prevent CORS issues
 if DEBUG:
+    CORS_ALLOWED_ORIGINS.extend([
+        'http://localhost:3001',  # Common alternative port
+        'http://localhost:8080',  # Another common port
+        'http://127.0.0.1:3001',
+        'http://127.0.0.1:8080',
+    ])
+    # Keep CORS_ALLOW_ALL_ORIGINS for maximum flexibility in development
     CORS_ALLOW_ALL_ORIGINS = True
 
 # Firebase Authentication settings
