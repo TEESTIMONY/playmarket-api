@@ -206,22 +206,23 @@ JWT_AUTH = {
 ASGI_APPLICATION = 'playmarket.asgi.application'
 
 # Redis configuration for Channels
-if DEBUG:
-    # Use in-memory channel layer for development when Redis is not available
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels.layers.InMemoryChannelLayer',
-        },
-    }
-else:
-    # Use Redis for production
-    REDIS_URL = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/1')
+# Use Redis only when REDIS_URL is explicitly configured.
+# This prevents local crashes when Redis isn't running.
+REDIS_URL = os.environ.get('REDIS_URL', '').strip()
+
+if REDIS_URL:
     CHANNEL_LAYERS = {
         'default': {
             'BACKEND': 'channels_redis.core.RedisChannelLayer',
             'CONFIG': {
                 "hosts": [REDIS_URL],
             },
+        },
+    }
+else:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
         },
     }
 
