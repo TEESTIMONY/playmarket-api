@@ -29,7 +29,7 @@ firebase-admin==6.3.0
 # WebSocket support
 channels==4.2.0
 channels-redis==4.1.0
-daphne==5.3.0
+daphne==4.2.1
 
 # Development dependencies (optional, but useful)
 # For local development only - can be removed for production
