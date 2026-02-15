@@ -25,6 +25,13 @@ urlpatterns = [
     path('api/', include('bounties.api_urls')),  # Include API endpoints
 ]
 
-# Serve media files in development
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Serve uploaded media files.
+#
+# In production on Render, DEBUG=False means Django's `static()` helper will
+# not add media routes unless `insecure=True` is provided. Without this,
+# auction image URLs return 404 in live environments.
+urlpatterns += static(
+    settings.MEDIA_URL,
+    document_root=settings.MEDIA_ROOT,
+    insecure=not settings.DEBUG,
+)
