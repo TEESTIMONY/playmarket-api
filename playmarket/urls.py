@@ -19,11 +19,14 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 import os
+from bounties.views import serve_auction_image
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('bounties/', include('bounties.urls')),
     path('api/', include('bounties.api_urls')),  # Include API endpoints
+    # Legacy-friendly auction image route (handles Django auto-renamed files)
+    path('media/auction_images/<path:filename>', serve_auction_image, name='serve_auction_image'),
 ]
 
 # Serve uploaded media files.

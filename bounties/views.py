@@ -2,10 +2,14 @@ from rest_framework import generics, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.core.files.storage import default_storage
+from django.http import FileResponse, HttpResponseNotFound
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.contrib.auth.models import User
 from django.db import transaction, models
+import mimetypes
+import os
 from .models import Bounty, BountyClaim, RedeemCode, UserProfile, CoinTransaction
 from .serializers import (
     BountySerializer, BountyDetailSerializer,
@@ -455,3 +459,39 @@ class UserListView(generics.ListAPIView):
             'users': data,
             'count': len(data)
         })
+
+
+def serve_auction_image(request, filename):
+    """Serve auction images with fallback for Django auto-renamed file names.
+
+    Example:
+    - Requested: AC_MILAN_CHAMPIONS.jpeg
+    - Stored: AC_MILAN_CHAMPIONS_0mauncA.jpeg
+    """
+    safe_filename = os.path.basename(filename)
+    requested_path = f'auction_images/{safe_filename}'
+
+    resolved_path = requested_path if default_storage.exists(requested_path) else None
+
+    if not resolved_path and '.' in safe_filename:
+        base, ext = os.path.splitext(safe_filename)
+        prefix = f"{base}_"
+
+        try:
+            _, files = default_storage.listdir('auction_images')
+        except Exception:
+            files = []
+
+        for candidate in files:
+            if candidate.startswith(prefix) and candidate.endswith(ext):
+                candidate_path = f'auction_images/{candidate}'
+                if default_storage.exists(candidate_path):
+                    resolved_path = candidate_path
+                    break
+
+    if not resolved_path:
+        return HttpResponseNotFound('Not Found')
+
+    file_handle = default_storage.open(resolved_path, 'rb')
+    content_type, _ = mimetypes.guess_type(resolved_path)
+    return FileResponse(file_handle, content_type=content_type or 'application/octet-stream')
