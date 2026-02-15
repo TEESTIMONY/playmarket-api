@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple WebSocket Test - PlayMarket</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1 { color: #333; }
+        
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background: #f0f0f0;
+        }
+        
+        .status.connected { background: #d4edda; color: #155724; }
+        .status.connecting { background: #fff3cd; color: #856404; }
+        .status.disconnected { background: #f8d7da; color: #721c24; }
+        
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        
+        .btn-connect { background: #007bff; color: white; }
+        .btn-disconnect { background: #dc3545; color: white; }
+        .btn-send { background: #28a745; color: white; }
+        
+        input, select {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .messages {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            background: #fafafa;
+            margin-top: 20px;
+        }
+        
+        .message {
+            margin: 5px 0;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .message.sent { background: #e3f2fd; }
+        .message.received { background: #f3e5f5; }
+        .message.system { background: #f1f3f4; font-style: italic; }
+        
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>WebSocket Test Interface</h1>
+        <p>Test WebSocket functionality for the PlayMarket auction system.</p>
+        
+        <div id="error" class="error"></div>
+        
+        <div id="status" class="status disconnected">Status: Disconnected</div>
+        
+        <div class="controls">
+            <button id="connectBtn" class="btn-connect">Connect</button>
+            <button id="disconnectBtn" class="btn-disconnect" disabled>Disconnect</button>
+            <select id="actionSelect">
+                <option value="echo">Echo Message</option>
+                <option value="ping">Ping/Pong</option>
+                <option value="test_auth">Test Authentication</option>
+                <option value="custom">Custom Message</option>
+            </select>
+            <input id="messageInput" type="text" placeholder="Enter message..." style="flex: 1; min-width: 200px;">
+            <button id="sendBtn" class="btn-send" disabled>Send</button>
+        </div>
+        
+        <div class="messages" id="messages"></div>
+        
+        <div style="margin-top: 20px; padding: 10px; background: #e9ecef; border-radius: 4px;">
+            <h3>Instructions:</h3>
+            <ul>
+                <li>1. Click "Connect" to establish WebSocket connection</li>
+                <li>2. Use dropdown to select action type</li>
+                <li>3. Enter a message and click "Send"</li>
+                <li>4. View responses in the messages area</li>
+                <li>5. Check browser console for detailed logs</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let isConnected = false;
+        let isConnecting = false;
+        
+        // DOM elements
+        const statusEl = document.getElementById('status');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const sendBtn = document.getElementById('sendBtn');
+        const actionSelect = document.getElementById('actionSelect');
+        const messageInput = document.getElementById('messageInput');
+        const messagesEl = document.getElementById('messages');
+        const errorEl = document.getElementById('error');
+        
+        // Update status display
+        function updateStatus(status) {
+            isConnected = status === 'connected';
+            isConnecting = status === 'connecting';
+            
+            if (status === 'connected') {
+                statusEl.className = 'status connected';
+                statusEl.textContent = 'Status: Connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                sendBtn.disabled = false;
+            } else if (status === 'connecting') {
+                statusEl.className = 'status connecting';
+                statusEl.textContent = 'Status: Connecting...';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = true;
+                sendBtn.disabled = true;
+            } else {
+                statusEl.className = 'status disconnected';
+                statusEl.textContent = 'Status: Disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                sendBtn.disabled = true;
+            }
+        }
+        
+        // Show error
+        function showError(msg) {
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            setTimeout(() => {
+                errorEl.style.display = 'none';
+            }, 5000);
+        }
+        
+        // Add message to display
+        function addMessage(type, content) {
+            const div = document.createElement('div');
+            div.className = `message ${type}`;
+            
+            if (typeof content === 'object') {
+                div.textContent = `${type.toUpperCase()}: ${JSON.stringify(content)}`;
+            } else {
+                div.textContent = `${type.toUpperCase()}: ${content}`;
+            }
+            
+            messagesEl.appendChild(div);
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+        
+        // Connect to WebSocket
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                return;
+            }
+            
+            updateStatus('connecting');
+            addMessage('system', 'Connecting to WebSocket...');
+            
+            try {
+                const wsUrl = 'ws://localhost:8000/ws/test/';
+                ws = new WebSocket(wsUrl);
+                
+                ws.onopen = function() {
+                    updateStatus('connected');
+                    addMessage('system', 'WebSocket connected successfully!');
+                    console.log('WebSocket connected');
+                };
+                
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        addMessage('received', data);
+                        console.log('Received:', data);
+                    } catch (err) {
+                        console.error('Error parsing message:', err);
+                        showError('Failed to parse message');
+                    }
+                };
+                
+                ws.onclose = function(event) {
+                    updateStatus('disconnected');
+                    addMessage('system', `Connection closed: ${event.code} - ${event.reason}`);
+                    console.log('WebSocket closed:', event.code, event.reason);
+                };
+                
+                ws.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    showError('WebSocket connection error');
+                    updateStatus('disconnected');
+                };
+                
+            } catch (err) {
+                console.error('Failed to create WebSocket:', err);
+                showError('Failed to create WebSocket connection');
+                updateStatus('disconnected');
+            }
+        }
+        
+        // Disconnect from WebSocket
+        function disconnect() {
+            if (ws) {
+                ws.close(1000, 'Manual disconnect');
+                ws = null;
+            }
+            updateStatus('disconnected');
+            addMessage('system', 'Disconnected from WebSocket');
+        }
+        
+        // Send message
+        function sendMessage() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                showError('WebSocket not connected');
+                return;
+            }
+            
+            const messageText = messageInput.value.trim();
+            if (!messageText) {
+                showError('Please enter a message');
+                return;
+            }
+            
+            try {
+                const message = {
+                    type: actionSelect.value,
+                    message: messageText,
+                    timestamp: new Date().toISOString()
+                };
+                
+                ws.send(JSON.stringify(message));
+                addMessage('sent', message);
+                messageInput.value = '';
+                console.log('Sent:', message);
+                
+            } catch (err) {
+                console.error('Failed to send message:', err);
+                showError('Failed to send message');
+            }
+        }
+        
+        // Event listeners
+        connectBtn.addEventListener('click', connect);
+        disconnectBtn.addEventListener('click', disconnect);
+        sendBtn.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') sendMessage();
+        });
+        
+        // Initial message
+        addMessage('system', 'WebSocket test interface loaded. Click "Connect" to begin.');
+        
+        // Check for JWT token
+        const token = localStorage.getItem('jwt_token');
+        if (token) {
+            addMessage('system', 'JWT token found - authentication available');
+        } else {
+            addMessage('system', 'No JWT token found - some features may be limited');
+        }
+    </script>
+</body>
+</html>

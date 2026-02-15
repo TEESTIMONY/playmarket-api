@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     # Third-party apps
     'rest_framework',
     'corsheaders',
+    'channels',
     # Local apps
     'bounties',
 ]
@@ -145,6 +146,10 @@ STATIC_URL = 'static/'
 # Static files directory for production
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
+# Media files (uploaded files like images)
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
@@ -196,6 +201,29 @@ JWT_AUTH = {
     'JWT_ALLOW_REFRESH': True,
     'JWT_REFRESH_EXPIRATION_DELTA': datetime.timedelta(days=14),
 }
+
+# Django Channels settings
+ASGI_APPLICATION = 'playmarket.asgi.application'
+
+# Redis configuration for Channels
+if DEBUG:
+    # Use in-memory channel layer for development when Redis is not available
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        },
+    }
+else:
+    # Use Redis for production
+    REDIS_URL = os.environ.get('REDIS_URL', 'redis://127.0.0.1:6379/1')
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                "hosts": [REDIS_URL],
+            },
+        },
+    }
 
 # Production security settings
 if not DEBUG:

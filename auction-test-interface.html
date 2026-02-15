@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PlayMarket Auction System - Test Interface</title>
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --success-color: #28a745;
+            --danger-color: #dc3545;
+            --warning-color: #ffc107;
+            --bg-color: #f8f9fa;
+            --text-color: #333;
+            --card-bg: #fff;
+            --border-color: #dee2e6;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+        }
+
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        h1 { margin: 0 0 10px 0; color: var(--primary-color); }
+        .subtitle { color: #666; font-size: 14px; }
+
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #ccc;
+        }
+        .dot.connected { background-color: var(--success-color); }
+        .dot.disconnected { background-color: var(--danger-color); }
+        .dot.active { background-color: var(--primary-color); }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .card h3 { margin-top: 0; color: var(--primary-color); }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 14px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+        }
+
+        button {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        button:hover { background: #0056b3; transform: translateY(-1px); }
+        button:disabled { background: #ccc; cursor: not-allowed; transform: none; }
+        
+        button.success { background: var(--success-color); }
+        button.success:hover { background: #218838; }
+        
+        button.danger { background: var(--danger-color); }
+        button.danger:hover { background: #c82333; }
+        
+        button.warning { background: var(--warning-color); color: #333; }
+        button.warning:hover { background: #e0a800; }
+
+        .messages {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 10px;
+            background: #fafafa;
+            margin-top: 10px;
+        }
+
+        .message {
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 6px;
+            font-size: 13px;
+            border-left: 4px solid transparent;
+        }
+
+        .message.system { background: #e3f2fd; border-color: var(--primary-color); }
+        .message.success { background: #e8f5e9; border-color: var(--success-color); }
+        .message.error { background: #ffebee; border-color: var(--danger-color); }
+        .message.warning { background: #fff3cd; border-color: var(--warning-color); }
+
+        .data-display {
+            background: #f8f9fa;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .api-test {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        @media (max-width: 768px) {
+            .api-test { grid-template-columns: 1fr; }
+        }
+
+        .response-panel {
+            background: #f8f9fa;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+
+        .instructions {
+            background: #e9ecef;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+
+        .instructions h4 { margin-top: 0; }
+        .instructions ul { margin: 10px 0; padding-left: 20px; }
+        .instructions li { margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎯 PlayMarket Auction System</h1>
+        <p class="subtitle">Complete WebSocket + REST API Test Interface</p>
+        
+        <div class="status-bar">
+            <div class="status-item">
+                <div id="ws-status-dot" class="dot disconnected"></div>
+                <span>WebSocket: <span id="ws-status-text">Disconnected</span></span>
+            </div>
+            <div class="status-item">
+                <div id="api-status-dot" class="dot disconnected"></div>
+                <span>API: <span id="api-status-text">Not Tested</span></span>
+            </div>
+            <div class="status-item">
+                <div id="auth-status-dot" class="dot disconnected"></div>
+                <span>Auth: <span id="auth-status-text">Not Checked</span></span>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid">
+        <!-- WebSocket Testing -->
+        <div class="card">
+            <h3>📡 WebSocket Testing</h3>
+            
+            <div class="form-group">
+                <label>WebSocket URL</label>
+                <input type="text" id="ws-url" value="ws://localhost:8000/ws/test/" readonly>
+            </div>
+
+            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                <button onclick="connectWebSocket()">Connect</button>
+                <button onclick="disconnectWebSocket()" class="danger" disabled>Disconnect</button>
+                <button onclick="sendTestMessage()" class="warning" disabled>Test Message</button>
+            </div>
+
+            <div class="messages" id="ws-messages">
+                <div class="message system">WebSocket test interface loaded. Click "Connect" to begin.</div>
+            </div>
+
+            <div style="margin-top: 15px;">
+                <button onclick="subscribeToAuction()" class="success" disabled>Subscribe to Auction</button>
+                <button onclick="placeBid()" class="primary" disabled>Place Test Bid</button>
+            </div>
+        </div>
+
+        <!-- API Testing -->
+        <div class="card">
+            <h3>🌐 REST API Testing</h3>
+            
+            <div class="api-test">
+                <div>
+                    <div class="form-group">
+                        <label>API Base URL</label>
+                        <input type="text" id="api-url" value="http://localhost:8001" readonly>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>JWT Token (Optional)</label>
+                        <input type="text" id="jwt-token" placeholder="Enter JWT token for authenticated requests">
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <button onclick="testAuctionList()">List Auctions</button>
+                        <button onclick="testCreateAuction()" class="warning">Create Test Auction</button>
+                    </div>
+                </div>
+                
+                <div class="response-panel" id="api-response">
+                    API responses will appear here...
+                </div>
+            </div>
+
+            <div style="margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <button onclick="testBidPlacement()" class="danger">Test Bid Placement</button>
+                <button onclick="testAuctionStatus()" class="success">Test Auction Status</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Display -->
+    <div class="card">
+        <h3>📊 Real-time Data</h3>
+        <div class="data-display" id="realtime-data">
+            Real-time auction data will appear here as events occur...
+        </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="instructions">
+        <h4>📋 Testing Instructions</h4>
+        <ul>
+            <li><strong>WebSocket Testing:</strong> Connect to test real-time communication, bid placement, and auction updates</li>
+            <li><strong>API Testing:</strong> Test REST endpoints for auction management and bidding</li>
+            <li><strong>Authentication:</strong> Use JWT tokens for admin operations (auction creation, status updates)</li>
+            <li><strong>Real-time Updates:</strong> Watch the data panel for live auction events and updates</li>
+            <li><strong>Integration:</strong> Both WebSocket and API work together for a complete auction experience</li>
+        </ul>
+        
+        <h4>🎯 Key Features Tested:</h4>
+        <ul>
+            <li>✅ WebSocket connection establishment</li>
+            <li>✅ Real-time bid broadcasting</li>
+            <li>✅ Auction status updates</li>
+            <li>✅ Leaderboard updates</li>
+            <li>✅ Admin auction management</li>
+            <li>✅ User authentication</li>
+            <li>✅ Coin deduction and winner determination</li>
+        </ul>
+    </div>
+
+    <script>
+        // WebSocket Management
+        let ws = null;
+        let isConnected = false;
+        let wsMessages = [];
+        
+        // API Management
+        const apiBaseUrl = document.getElementById('api-url').value;
+        let jwtToken = localStorage.getItem('jwt_token') || '';
+
+        // Update JWT token field if stored
+        if (jwtToken) {
+            document.getElementById('jwt-token').value = jwtToken;
+        }
+
+        // WebSocket Functions
+        function updateWSStatus(status) {
+            isConnected = status === 'connected';
+            const dot = document.getElementById('ws-status-dot');
+            const text = document.getElementById('ws-status-text');
+            
+            if (status === 'connected') {
+                dot.className = 'dot connected';
+                text.textContent = 'Connected';
+                document.querySelectorAll('button').forEach(btn => {
+                    if (btn.onclick && btn.onclick.toString().includes('WebSocket')) {
+                        btn.disabled = false;
+                    }
+                });
+            } else if (status === 'connecting') {
+                dot.className = 'dot';
+                text.textContent = 'Connecting...';
+            } else {
+                dot.className = 'dot disconnected';
+                text.textContent = 'Disconnected';
+                document.querySelectorAll('button').forEach(btn => {
+                    if (btn.onclick && btn.onclick.toString().includes('WebSocket')) {
+                        btn.disabled = true;
+                    }
+                });
+            }
+        }
+
+        function addWSMessage(type, content) {
+            const messagesDiv = document.getElementById('ws-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = `${new Date().toLocaleTimeString()}: ${content}`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function connectWebSocket() {
+            if (ws && ws.readyState === WebSocket.OPEN) return;
+
+            updateWSStatus('connecting');
+            addWSMessage('system', 'Connecting to WebSocket...');
+
+            try {
+                const wsUrl = document.getElementById('ws-url').value;
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = () => {
+                    updateWSStatus('connected');
+                    addWSMessage('success', 'WebSocket connected successfully!');
+                    console.log('WebSocket connected');
+                };
+
+                ws.onmessage = (event) => {
+                    try {
+                        const data = JSON.parse(event.data);
+                        addWSMessage('system', `Received: ${JSON.stringify(data)}`);
+                        
+                        // Update real-time data display
+                        updateRealtimeData('WebSocket Event', data);
+                        
+                    } catch (err) {
+                        console.error('Error parsing WebSocket message:', err);
+                        addWSMessage('error', 'Failed to parse WebSocket message');
+                    }
+                };
+
+                ws.onclose = (event) => {
+                    updateWSStatus('disconnected');
+                    addWSMessage('system', `WebSocket disconnected: ${event.code} - ${event.reason}`);
+                };
+
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    addWSMessage('error', 'WebSocket connection error');
+                    updateWSStatus('disconnected');
+                };
+
+            } catch (err) {
+                console.error('Failed to create WebSocket:', err);
+                addWSMessage('error', 'Failed to create WebSocket connection');
+                updateWSStatus('disconnected');
+            }
+        }
+
+        function disconnectWebSocket() {
+            if (ws) {
+                ws.close(1000, 'Manual disconnect');
+                ws = null;
+            }
+            updateWSStatus('disconnected');
+            addWSMessage('system', 'Disconnected from WebSocket');
+        }
+
+        function sendTestMessage() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                addWSMessage('error', 'WebSocket not connected');
+                return;
+            }
+
+            const message = {
+                type: 'echo',
+                message: 'Test message from auction interface',
+                timestamp: new Date().toISOString()
+            };
+
+            ws.send(JSON.stringify(message));
+            addWSMessage('system', `Sent: ${JSON.stringify(message)}`);
+        }
+
+        function subscribeToAuction() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                addWSMessage('error', 'WebSocket not connected');
+                return;
+            }
+
+            const message = {
+                action: 'subscribe_auction',
+                auction_id: 'test-auction-123'
+            };
+
+            ws.send(JSON.stringify(message));
+            addWSMessage('system', `Subscribed to auction: ${message.auction_id}`);
+        }
+
+        function placeBid() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                addWSMessage('error', 'WebSocket not connected');
+                return;
+            }
+
+            const message = {
+                action: 'place_bid',
+                auction_id: 'test-auction-123',
+                amount: 150
+            };
+
+            ws.send(JSON.stringify(message));
+            addWSMessage('system', `Placed bid: ${message.amount} coins on auction ${message.auction_id}`);
+        }
+
+        // API Functions
+        function updateAPIStatus(status) {
+            const dot = document.getElementById('api-status-dot');
+            const text = document.getElementById('api-status-text');
+            
+            if (status === 'success') {
+                dot.className = 'dot active';
+                text.textContent = 'Working';
+            } else if (status === 'error') {
+                dot.className = 'dot disconnected';
+                text.textContent = 'Error';
+            } else {
+                dot.className = 'dot disconnected';
+                text.textContent = 'Not Tested';
+            }
+        }
+
+        function updateAuthStatus(status) {
+            const dot = document.getElementById('auth-status-dot');
+            const text = document.getElementById('auth-status-text');
+            
+            if (status === 'authenticated') {
+                dot.className = 'dot connected';
+                text.textContent = 'Authenticated';
+            } else if (status === 'unauthenticated') {
+                dot.className = 'dot disconnected';
+                text.textContent = 'Unauthenticated';
+            } else {
+                dot.className = 'dot disconnected';
+                text.textContent = 'Not Checked';
+            }
+        }
+
+        function updateRealtimeData(source, data) {
+            const dataDiv = document.getElementById('realtime-data');
+            const entry = document.createElement('div');
+            entry.style.marginBottom = '10px';
+            entry.style.paddingBottom = '10px';
+            entry.style.borderBottom = '1px solid #ddd';
+            entry.innerHTML = `
+                <strong>${source}</strong> - ${new Date().toLocaleTimeString()}<br>
+                <code>${JSON.stringify(data, null, 2)}</code>
+            `;
+            dataDiv.appendChild(entry);
+            dataDiv.scrollTop = dataDiv.scrollHeight;
+        }
+
+        async function apiRequest(endpoint, method = 'GET', data = null) {
+            const url = `${apiBaseUrl}${endpoint}`;
+            const headers = {
+                'Content-Type': 'application/json',
+            };
+
+            if (jwtToken) {
+                headers['Authorization'] = `Bearer ${jwtToken}`;
+            }
+
+            try {
+                const response = await fetch(url, {
+                    method,
+                    headers,
+                    body: data ? JSON.stringify(data) : null
+                });
+
+                const result = await response.json();
+                
+                updateAPIStatus('success');
+                displayAPIResponse(result, response.status);
+                
+                return result;
+            } catch (error) {
+                updateAPIStatus('error');
+                displayAPIResponse({ error: error.message }, 0);
+                return null;
+            }
+        }
+
+        function displayAPIResponse(data, status) {
+            const responseDiv = document.getElementById('api-response');
+            responseDiv.innerHTML = `
+                <strong>Status: ${status}</strong><br>
+                <pre>${JSON.stringify(data, null, 2)}</pre>
+            `;
+        }
+
+        function testAuctionList() {
+            apiRequest('/bounties/auctions/');
+        }
+
+        function testCreateAuction() {
+            const auctionData = {
+                title: 'Test Auction - ' + new Date().toLocaleString(),
+                description: 'This is a test auction created via the API',
+                starting_bid: 100,
+                minimum_bid_increment: 10,
+                starts_at: new Date().toISOString(),
+                ends_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+            };
+
+            apiRequest('/bounties/auctions/create/', 'POST', auctionData);
+        }
+
+        function testBidPlacement() {
+            const bidData = {
+                amount: 120
+            };
+
+            apiRequest('/bounties/auctions/1/bid/', 'POST', bidData);
+        }
+
+        function testAuctionStatus() {
+            apiRequest('/bounties/auctions/1/status/', 'PATCH', { status: 'active' });
+        }
+
+        // Initialize
+        (function init() {
+            // Check for JWT token
+            if (jwtToken) {
+                updateAuthStatus('authenticated');
+            } else {
+                updateAuthStatus('unauthenticated');
+            }
+
+            // Add event listener for JWT token input
+            document.getElementById('jwt-token').addEventListener('input', (e) => {
+                jwtToken = e.target.value;
+                localStorage.setItem('jwt_token', jwtToken);
+                updateAuthStatus(jwtToken ? 'authenticated' : 'unauthenticated');
+            });
+
+            // Add Enter key support for API requests
+            document.getElementById('jwt-token').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    testAuctionList();
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

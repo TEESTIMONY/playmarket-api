@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.utils import timezone
-from .models import Bounty, BountyClaim, RedeemCode
+from .models import Bounty, BountyClaim, RedeemCode, Auction, AuctionImage
+from .auction_models import AuctionBid, AuctionWinner
 
 
 class BountySerializer(serializers.ModelSerializer):
@@ -94,3 +95,133 @@ class RedeemCodeCreateSerializer(serializers.ModelSerializer):
 
 class RedeemCodeRedeemSerializer(serializers.Serializer):
     code = serializers.CharField(max_length=50)
+
+
+# Auction System Serializers
+class AuctionImageSerializer(serializers.ModelSerializer):
+    """Serializer for AuctionImage model."""
+    image = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = AuctionImage
+        fields = ['id', 'image', 'order', 'created_at']
+        read_only_fields = ['created_at']
+
+    def get_image(self, obj):
+        request = self.context.get('request')
+        if not obj.image:
+            return None
+
+        image_url = obj.image.url
+        return request.build_absolute_uri(image_url) if request else image_url
+
+
+class AuctionSerializer(serializers.ModelSerializer):
+    """Serializer for Auction model."""
+    current_highest_bid = serializers.SerializerMethodField()
+    bid_count = serializers.SerializerMethodField()
+    time_until_start = serializers.SerializerMethodField()
+    time_until_end = serializers.SerializerMethodField()
+    is_active = serializers.SerializerMethodField()
+    images = serializers.SerializerMethodField()
+    image_files = AuctionImageSerializer(source='images', many=True, read_only=True)
+
+    class Meta:
+        model = Auction
+        fields = [
+            'id', 'title', 'description', 'minimum_bid', 'status',
+            'starts_at', 'ends_at', 'created_at', 'updated_at', 'created_by',
+            'current_highest_bid', 'bid_count', 'time_until_start', 
+            'time_until_end', 'is_active', 'images', 'image_files'
+        ]
+        read_only_fields = ['status', 'created_at', 'created_by', 'current_highest_bid', 'bid_count', 'image_files']
+
+    def get_current_highest_bid(self, obj):
+        return obj.current_highest_bid
+
+    def get_bid_count(self, obj):
+        return obj.total_bids
+
+    def get_time_until_start(self, obj):
+        if obj.starts_at:
+            remaining = obj.starts_at - timezone.now()
+            if remaining.total_seconds() > 0:
+                hours = int(remaining.total_seconds() // 3600)
+                minutes = int((remaining.total_seconds() % 3600) // 60)
+                return f"{hours}h {minutes}m"
+        return None
+
+    def get_time_until_end(self, obj):
+        if obj.ends_at:
+            remaining = obj.ends_at - timezone.now()
+            if remaining.total_seconds() > 0:
+                hours = int(remaining.total_seconds() // 3600)
+                minutes = int((remaining.total_seconds() % 3600) // 60)
+                return f"{hours}h {minutes}m"
+        return None
+
+    def get_is_active(self, obj):
+        return obj.status == 'active'
+
+    def get_images(self, obj):
+        """Return auction image URLs for frontend compatibility."""
+        request = self.context.get('request')
+
+        uploaded_images = []
+        for image_obj in obj.images.all().order_by('order', 'created_at'):
+            if image_obj.image:
+                image_url = image_obj.image.url
+                uploaded_images.append(
+                    request.build_absolute_uri(image_url) if request else image_url
+                )
+
+        if uploaded_images:
+            return uploaded_images
+
+        legacy_urls = obj.image_urls or []
+        if not request:
+            return legacy_urls
+
+        normalized_urls = []
+        for url in legacy_urls:
+            if isinstance(url, str) and url.startswith('/'):
+                normalized_urls.append(request.build_absolute_uri(url))
+            else:
+                normalized_urls.append(url)
+        return normalized_urls
+
+
+class AuctionBidSerializer(serializers.ModelSerializer):
+    """Serializer for AuctionBid model."""
+    username = serializers.CharField(source='user.username', read_only=True)
+    auction_title = serializers.CharField(source='auction.title', read_only=True)
+
+    class Meta:
+        model = AuctionBid
+        fields = [
+            'id', 'auction', 'auction_title', 'user', 'username',
+            'amount', 'created_at'
+        ]
+        read_only_fields = ['user', 'username', 'created_at']
+
+
+class AuctionWinnerSerializer(serializers.ModelSerializer):
+    """Serializer for AuctionWinner model."""
+    user = serializers.IntegerField(source='winner.id', read_only=True)
+    username = serializers.CharField(source='winner.username', read_only=True)
+    auction_title = serializers.CharField(source='auction.title', read_only=True)
+    winning_bid = serializers.IntegerField(source='winning_amount', read_only=True)
+    coins_deducted = serializers.IntegerField(source='winning_amount', read_only=True)
+    won_at = serializers.DateTimeField(source='created_at', read_only=True)
+
+    class Meta:
+        model = AuctionWinner
+        fields = [
+            'id', 'auction', 'auction_title', 'user', 'username',
+            'winning_bid', 'coins_deducted', 'won_at',
+            'winning_amount', 'coins_transferred', 'transfer_completed_at', 'created_at'
+        ]
+        read_only_fields = [
+            'user', 'username', 'winning_bid', 'coins_deducted', 'won_at',
+            'winning_amount', 'coins_transferred', 'transfer_completed_at', 'created_at'
+        ]

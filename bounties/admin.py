@@ -7,7 +7,8 @@ from django.shortcuts import redirect, render
 from django.db.models import Sum, Count
 from django.http import HttpResponse
 from django.utils.html import format_html
-from .models import UserProfile, CoinTransaction, Bounty, BountyClaim, RedeemCode
+from .models import UserProfile, CoinTransaction, Bounty, BountyClaim, RedeemCode, Auction, AuctionImage
+from .auction_models import AuctionBid, AuctionWinner
 
 
 # Inline for UserProfile in User admin
@@ -440,6 +441,127 @@ class UserAdmin(BaseUserAdmin):
         user = queryset.first()
         return redirect('admin:user_overview', user_id=user.id)
     view_user_overview.short_description = "View User Overview"
+
+
+# Auction Admin Classes
+
+class AuctionImageInline(admin.TabularInline):
+    model = AuctionImage
+    extra = 0
+    fields = ['image', 'order', 'created_at']
+    readonly_fields = ['created_at']
+    ordering = ['order', 'created_at']
+
+
+@admin.register(Auction)
+class AuctionAdmin(admin.ModelAdmin):
+    list_display = ['title', 'minimum_bid', 'current_highest_bid', 'current_highest_bidder', 'status', 'starts_at', 'ends_at', 'created_at']
+    list_filter = ['status', 'starts_at', 'ends_at', 'created_at']
+    search_fields = ['title', 'description']
+    ordering = ['-created_at']
+    readonly_fields = ['created_at', 'updated_at', 'current_highest_bid', 'current_highest_bidder', 'total_bids']
+    inlines = [AuctionImageInline]
+    
+    fieldsets = (
+        ('Basic Information', {
+            'fields': ('title', 'description', 'minimum_bid')
+        }),
+        ('Images', {
+            'fields': ('image_urls',),
+            'description': 'Enter image URLs as a JSON array, e.g., ["https://example.com/image1.jpg", "https://example.com/image2.jpg"]'
+        }),
+        ('Timing', {
+            'fields': ('starts_at', 'ends_at')
+        }),
+        ('Status & Management', {
+            'fields': ('status', 'created_by')
+        }),
+        ('Current State', {
+            'fields': ('current_highest_bid', 'current_highest_bidder', 'total_bids'),
+            'classes': ('collapse',)
+        }),
+        ('Timestamps', {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    actions = ['activate_auctions', 'deactivate_auctions', 'end_auctions']
+
+    def activate_auctions(self, request, queryset):
+        updated = queryset.filter(status='pending').update(status='active')
+        self.message_user(request, f"Activated {updated} pending auctions.")
+    activate_auctions.short_description = "Activate selected pending auctions"
+
+    def deactivate_auctions(self, request, queryset):
+        updated = queryset.filter(status='active').update(status='pending')
+        self.message_user(request, f"Deactivated {updated} active auctions.")
+    deactivate_auctions.short_description = "Deactivate selected active auctions"
+
+    def end_auctions(self, request, queryset):
+        # This would trigger the end auction logic
+        ended_count = 0
+        for auction in queryset.filter(status='active'):
+            # Find highest bid
+            highest_bid = AuctionBid.objects.filter(
+                auction=auction,
+                status='accepted'
+            ).order_by('-amount').first()
+            
+            if highest_bid:
+                # Create winner record
+                AuctionWinner.objects.create(
+                    auction=auction,
+                    winner=highest_bid.user,
+                    winning_amount=highest_bid.amount,
+                    coins_transferred=False,
+                )
+                ended_count += 1
+        
+        if ended_count > 0:
+            queryset.filter(status='active').update(status='ended')
+            self.message_user(request, f"Ended {ended_count} auctions and determined winners.")
+        else:
+            self.message_user(request, "No active auctions found to end.")
+    end_auctions.short_description = "End selected active auctions and determine winners"
+
+
+@admin.register(AuctionBid)
+class AuctionBidAdmin(admin.ModelAdmin):
+    list_display = ['auction', 'user', 'amount', 'created_at']
+    list_filter = ['created_at', 'auction']
+    search_fields = ['auction__title', 'user__username']
+    ordering = ['-created_at']
+    readonly_fields = ['created_at']
+    
+    fieldsets = (
+        ('Bid Information', {
+            'fields': ('auction', 'user', 'amount')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(AuctionWinner)
+class AuctionWinnerAdmin(admin.ModelAdmin):
+    list_display = ['auction', 'winner', 'winning_amount', 'coins_transferred', 'created_at']
+    list_filter = ['created_at', 'auction']
+    search_fields = ['auction__title', 'winner__username']
+    ordering = ['-created_at']
+    readonly_fields = ['created_at']
+    
+    fieldsets = (
+        ('Winner Information', {
+            'fields': ('auction', 'winner', 'winning_amount', 'coins_transferred')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
 
 
 # Unregister the default User admin and register our custom one

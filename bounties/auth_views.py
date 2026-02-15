@@ -2,17 +2,21 @@ import os
 import jwt
 import requests
 from datetime import datetime, timedelta
+import logging
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.views import View
+from django.conf import settings
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework import status
 from .models import UserProfile
+
+logger = logging.getLogger(__name__)
 
 # Firebase Admin SDK setup
 import firebase_admin
@@ -98,7 +102,7 @@ def firebase_login(request):
     
     try:
         # Verify Firebase ID token
-        decoded_token = auth.verify_id_token(firebase_token)
+        decoded_token = auth.verify_id_token(firebase_token, clock_skew_seconds=60)
         user_email = decoded_token['email']
         user_name = decoded_token.get('name', '')
         firebase_uid = decoded_token['uid']
@@ -145,9 +149,16 @@ def firebase_login(request):
             'message': 'Login successful'
         })
         
-    except auth.InvalidIdTokenError:
-        return Response({'error': 'Invalid Firebase ID token'}, status=status.HTTP_400_BAD_REQUEST)
+    except auth.ExpiredIdTokenError:
+        return Response({'error': 'Firebase ID token expired. Please sign in again.'}, status=status.HTTP_400_BAD_REQUEST)
+    except auth.InvalidIdTokenError as e:
+        logger.warning(f"Invalid Firebase ID token: {str(e)}")
+        error_payload = {'error': 'Invalid Firebase ID token'}
+        if settings.DEBUG:
+            error_payload['details'] = str(e)
+        return Response(error_payload, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
+        logger.exception(f"Firebase authentication failed: {str(e)}")
         return Response({'error': f'Authentication failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

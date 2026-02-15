@@ -5,6 +5,11 @@ from .views import (
     UserBalanceView, UserTransactionsView, AdminUserBalanceAdjustmentView,
     UserDetailView, UserListView, BountyClaimApprovalView
 )
+from .auction_views import (
+    AuctionListView, AuctionDetailView, CreateAuctionView, DeleteAuctionView, PlaceBidView,
+    AuctionStatusView, EndAuctionView, AuctionLeaderboardView,
+    UserAuctionHistoryView
+)
 
 urlpatterns = [
     # Authentication endpoints
@@ -26,4 +31,15 @@ urlpatterns = [
     path('bounties/admin/users/', UserListView.as_view(), name='admin_users'),
     path('bounties/admin/adjust-balance/', AdminUserBalanceAdjustmentView.as_view(), name='admin_adjust_balance'),
     path('bounties/claims/<int:claim_id>/approve/', BountyClaimApprovalView.as_view(), name='approve_bounty_claim'),
+    
+    # Auction endpoints
+    path('auctions/', AuctionListView.as_view(), name='auction_list'),
+    path('auctions/<int:id>/', AuctionDetailView.as_view(), name='auction_detail'),
+    path('auctions/create/', CreateAuctionView.as_view(), name='create_auction'),
+    path('auctions/<int:auction_id>/delete/', DeleteAuctionView.as_view(), name='delete_auction'),
+    path('auctions/<int:auction_id>/bid/', PlaceBidView.as_view(), name='place_bid'),
+    path('auctions/<int:auction_id>/status/', AuctionStatusView.as_view(), name='auction_status'),
+    path('auctions/<int:auction_id>/end/', EndAuctionView.as_view(), name='end_auction'),
+    path('auctions/<int:auction_id>/leaderboard/', AuctionLeaderboardView.as_view(), name='auction_leaderboard'),
+    path('auctions/history/', UserAuctionHistoryView.as_view(), name='user_auction_history'),
 ]

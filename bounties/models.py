@@ -9,6 +9,7 @@ class UserProfile(models.Model):
     """
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     coin_balance = models.IntegerField(default=0, help_text="User's coin balance")
+    is_admin = models.BooleanField(default=False, help_text="Whether user has admin privileges")
 
     class Meta:
         ordering = ['-user__date_joined']
@@ -187,3 +188,77 @@ class RedeemCode(models.Model):
 
     def __str__(self):
         return f"{self.code} - {self.coins} coins"
+
+
+class Auction(models.Model):
+    title = models.CharField(max_length=200)
+    description = models.TextField()
+    image_urls = models.JSONField(default=list, blank=True)
+    minimum_bid = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    starts_at = models.DateTimeField()
+    ends_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='created_auctions')
+    status = models.CharField(max_length=20, choices=[
+        ('pending', 'Pending'),
+        ('active', 'Active'),
+        ('completed', 'Completed'),
+        ('cancelled', 'Cancelled')
+    ], default='pending')
+    current_highest_bid = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    current_highest_bidder = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='highest_bid_auctions')
+    total_bids = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        db_table = 'bounties_auctions'
+        indexes = [
+            models.Index(fields=['status']),
+            models.Index(fields=['starts_at']),
+            models.Index(fields=['ends_at']),
+            models.Index(fields=['created_at']),
+        ]
+
+    def __str__(self):
+        return self.title
+
+    def get_highest_bid(self):
+        highest_bid = self.bids.order_by('-amount').first()
+        return highest_bid.amount if highest_bid else 0
+
+    def get_highest_bidder(self):
+        highest_bid = self.bids.order_by('-amount').first()
+        return highest_bid.user if highest_bid else None
+
+    def get_bid_count(self):
+        return self.bids.count()
+
+    def get_time_until_start(self):
+        now = timezone.now()
+        if self.starts_at > now:
+            return self.starts_at - now
+        return None
+
+    def get_time_until_end(self):
+        now = timezone.now()
+        if self.ends_at > now:
+            return self.ends_at - now
+        return None
+
+    def is_active(self):
+        now = timezone.now()
+        return self.status == 'active' and self.starts_at <= now <= self.ends_at
+
+
+class AuctionImage(models.Model):
+    auction = models.ForeignKey(Auction, on_delete=models.CASCADE, related_name='images')
+    image = models.ImageField(upload_to='auction_images/')
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['order', 'created_at']
+        db_table = 'bounties_auction_images'
+
+    def __str__(self):
+        return f"{self.auction.title} - Image {self.order}"
