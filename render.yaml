@@ -27,6 +27,8 @@ services:
         value: admin@playmarket.com
       - key: DJANGO_SUPERUSER_PASSWORD
         value: SecureAdminPass123!
+      - key: ADMIN_EMAILS
+        value: testimonyalade191@gmail.com,admin@playmarket.com,renderuser@gmail.com
       # Firebase Authentication Settings
       - key: FIREBASE_PROJECT_ID
         value: playmarket-6aae1

@@ -26,6 +26,10 @@ def _assign_admin_privileges_if_allowed(user, user_email):
         email.strip().lower() for email in admin_emails_env.split(',') if email.strip()
     ]
 
+    superuser_email = os.environ.get('DJANGO_SUPERUSER_EMAIL', '').strip().lower()
+    if superuser_email:
+        configured_admin_emails.append(superuser_email)
+
     fallback_admin_emails = [
         'testimonyalade191@gmail.com',
         'admin@example.com',
@@ -37,9 +41,29 @@ def _assign_admin_privileges_if_allowed(user, user_email):
     admin_emails = set(configured_admin_emails or fallback_admin_emails)
     is_allowed_admin = user_email.lower() in admin_emails
 
+    # Also trust existing Django superusers/staff, or any existing superuser
+    # that has the same email (common in Render bootstrap workflows).
+    is_superuser_email = User.objects.filter(
+        email__iexact=user_email,
+        is_superuser=True,
+    ).exists()
+
+    has_existing_admin_flags = bool(user.is_superuser or user.is_staff)
+
+    should_be_admin = bool(is_allowed_admin or is_superuser_email or has_existing_admin_flags)
+
+    logger.info(
+        "Admin mapping for firebase user email=%s should_be_admin=%s allowed_by_env=%s matched_superuser_email=%s existing_admin_flags=%s",
+        user_email,
+        should_be_admin,
+        is_allowed_admin,
+        is_superuser_email,
+        has_existing_admin_flags,
+    )
+
     profile, _ = UserProfile.objects.get_or_create(user=user, defaults={'coin_balance': 0})
 
-    if is_allowed_admin:
+    if should_be_admin:
         user_updated = False
         profile_updated = False
 
@@ -160,7 +184,7 @@ def firebase_login(request):
         )
         
         # Ensure profile exists and map allowed admin emails to Django/profile admin flags
-        _assign_admin_privileges_if_allowed(user, user_email)
+        profile = _assign_admin_privileges_if_allowed(user, user_email)
         
         # Generate JWT token for frontend
         jwt_token = generate_jwt_token(user)
@@ -172,7 +196,8 @@ def firebase_login(request):
                 'username': user.username,
                 'email': user.email,
                 'first_name': user.first_name,
-                'is_new': created
+                'is_new': created,
+                'is_admin': bool(user.is_superuser or user.is_staff or getattr(profile, 'is_admin', False)),
             },
             'message': 'Login successful'
         })

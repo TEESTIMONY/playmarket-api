@@ -5,6 +5,8 @@ This module contains Django REST Framework views for managing auctions,
 bidding, and real-time auction updates.
 """
 
+import os
+
 from rest_framework import status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -30,12 +32,36 @@ from .authentication import FirebaseAuthentication
 logger = logging.getLogger(__name__)
 
 
+def _get_admin_identity_allowlist():
+    """Load admin identity allowlist from environment variables."""
+    admin_emails_env = os.environ.get('ADMIN_EMAILS', '')
+    admin_emails = {
+        email.strip().lower()
+        for email in admin_emails_env.split(',')
+        if email.strip()
+    }
+
+    superuser_email = os.environ.get('DJANGO_SUPERUSER_EMAIL', '').strip().lower()
+    if superuser_email:
+        admin_emails.add(superuser_email)
+
+    return admin_emails
+
+
 def _has_admin_privileges(user):
     """Return True if user should be treated as an admin."""
     if not user or not getattr(user, 'is_authenticated', False):
         return False
 
     if user.is_superuser or user.is_staff:
+        return True
+
+    admin_allowlist = _get_admin_identity_allowlist()
+    identity_candidates = {
+        (getattr(user, 'email', '') or '').strip().lower(),
+        (getattr(user, 'username', '') or '').strip().lower(),
+    }
+    if admin_allowlist and any(identity in admin_allowlist for identity in identity_candidates if identity):
         return True
 
     try:
@@ -89,6 +115,26 @@ class CreateAuctionView(APIView):
 
         # Check if user is admin
         if not _has_admin_privileges(user):
+            profile_is_admin = False
+            try:
+                profile_is_admin = bool(user.profile.is_admin)
+            except UserProfile.DoesNotExist:
+                profile_is_admin = False
+
+            admin_allowlist = _get_admin_identity_allowlist()
+            email_value = (getattr(user, 'email', '') or '').strip().lower()
+            username_value = (getattr(user, 'username', '') or '').strip().lower()
+
+            logger.warning(
+                "Auction create denied for user=%s email=%s is_superuser=%s is_staff=%s profile_is_admin=%s allowlist_email_match=%s allowlist_username_match=%s",
+                user.username,
+                getattr(user, 'email', ''),
+                user.is_superuser,
+                user.is_staff,
+                profile_is_admin,
+                email_value in admin_allowlist if admin_allowlist else False,
+                username_value in admin_allowlist if admin_allowlist else False,
+            )
             return Response(
                 {'error': 'Admin privileges required'},
                 status=status.HTTP_403_FORBIDDEN
