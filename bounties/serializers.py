@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.utils import timezone
+from urllib.parse import urlparse
 from .models import Bounty, BountyClaim, RedeemCode, Auction, AuctionImage
 from .auction_models import AuctionBid, AuctionWinner
 
@@ -167,6 +168,37 @@ class AuctionSerializer(serializers.ModelSerializer):
         """Return auction image URLs for frontend compatibility."""
         request = self.context.get('request')
 
+        def normalize_legacy_url(url):
+            """Normalize legacy URLs so host/protocol mismatches do not break images."""
+            if not isinstance(url, str):
+                return url
+
+            if not request:
+                return url
+
+            def normalize_media_path(path):
+                if path.startswith('/media/'):
+                    return path
+                if path.startswith('/auction_images/'):
+                    return f"/media{path}"
+                return path
+
+            if url.startswith('/'):
+                return request.build_absolute_uri(normalize_media_path(url))
+
+            # If an absolute URL points to a stale host (e.g. localhost/old render
+            # host) but still references /media/, rebuild with current API host.
+            if url.startswith('http://') or url.startswith('https://'):
+                parsed = urlparse(url)
+                normalized_path = normalize_media_path(parsed.path)
+                if normalized_path.startswith('/media/'):
+                    normalized = request.build_absolute_uri(normalized_path)
+                    if parsed.query:
+                        normalized = f"{normalized}?{parsed.query}"
+                    return normalized
+
+            return url
+
         uploaded_images = []
         for image_obj in obj.images.all().order_by('order', 'created_at'):
             if image_obj.image:
@@ -184,10 +216,7 @@ class AuctionSerializer(serializers.ModelSerializer):
 
         normalized_urls = []
         for url in legacy_urls:
-            if isinstance(url, str) and url.startswith('/'):
-                normalized_urls.append(request.build_absolute_uri(url))
-            else:
-                normalized_urls.append(url)
+            normalized_urls.append(normalize_legacy_url(url))
         return normalized_urls
 
 

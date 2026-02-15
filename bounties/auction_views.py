@@ -201,7 +201,9 @@ class CreateAuctionView(APIView):
                             order=index
                         )
                         if auction_image.image:
-                            stored_image_urls.append(request.build_absolute_uri(auction_image.image.url))
+                            # Store relative media path so URLs remain valid across
+                            # environments/domains (localhost, Render, custom domains).
+                            stored_image_urls.append(auction_image.image.url)
 
                     if stored_image_urls:
                         auction.image_urls = stored_image_urls
