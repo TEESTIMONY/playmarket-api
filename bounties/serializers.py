@@ -1,8 +1,22 @@
 from rest_framework import serializers
 from django.utils import timezone
+from django.conf import settings
+from django.core.files.storage import default_storage
 from urllib.parse import urlparse
 from .models import Bounty, BountyClaim, RedeemCode, Auction, AuctionImage
 from .auction_models import AuctionBid, AuctionWinner
+
+
+def _build_absolute_media_url(request, path):
+    """Build absolute media URL using canonical backend host when configured."""
+    if not isinstance(path, str):
+        return path
+
+    public_base = getattr(settings, 'API_PUBLIC_BASE_URL', '')
+    if public_base and path.startswith('/'):
+        return f"{public_base}{path}"
+
+    return request.build_absolute_uri(path) if request else path
 
 
 class BountySerializer(serializers.ModelSerializer):
@@ -113,8 +127,12 @@ class AuctionImageSerializer(serializers.ModelSerializer):
         if not obj.image:
             return None
 
+        # Do not expose broken media links when file is missing on disk/storage.
+        if not default_storage.exists(obj.image.name):
+            return None
+
         image_url = obj.image.url
-        return request.build_absolute_uri(image_url) if request else image_url
+        return _build_absolute_media_url(request, image_url)
 
 
 class AuctionSerializer(serializers.ModelSerializer):
@@ -168,6 +186,12 @@ class AuctionSerializer(serializers.ModelSerializer):
         """Return auction image URLs for frontend compatibility."""
         request = self.context.get('request')
 
+        def media_file_exists_from_path(path):
+            if not isinstance(path, str) or not path.startswith('/media/'):
+                return False
+            relative_path = path[len('/media/'):]
+            return default_storage.exists(relative_path)
+
         def normalize_legacy_url(url):
             """Normalize legacy URLs so host/protocol mismatches do not break images."""
             if not isinstance(url, str):
@@ -184,7 +208,10 @@ class AuctionSerializer(serializers.ModelSerializer):
                 return path
 
             if url.startswith('/'):
-                return request.build_absolute_uri(normalize_media_path(url))
+                normalized_path = normalize_media_path(url)
+                if normalized_path.startswith('/media/') and not media_file_exists_from_path(normalized_path):
+                    return None
+                return _build_absolute_media_url(request, normalized_path)
 
             # If an absolute URL points to a stale host (e.g. localhost/old render
             # host) but still references /media/, rebuild with current API host.
@@ -192,7 +219,9 @@ class AuctionSerializer(serializers.ModelSerializer):
                 parsed = urlparse(url)
                 normalized_path = normalize_media_path(parsed.path)
                 if normalized_path.startswith('/media/'):
-                    normalized = request.build_absolute_uri(normalized_path)
+                    if not media_file_exists_from_path(normalized_path):
+                        return None
+                    normalized = _build_absolute_media_url(request, normalized_path)
                     if parsed.query:
                         normalized = f"{normalized}?{parsed.query}"
                     return normalized
@@ -201,10 +230,10 @@ class AuctionSerializer(serializers.ModelSerializer):
 
         uploaded_images = []
         for image_obj in obj.images.all().order_by('order', 'created_at'):
-            if image_obj.image:
+            if image_obj.image and default_storage.exists(image_obj.image.name):
                 image_url = image_obj.image.url
                 uploaded_images.append(
-                    request.build_absolute_uri(image_url) if request else image_url
+                    _build_absolute_media_url(request, image_url)
                 )
 
         if uploaded_images:
@@ -216,7 +245,9 @@ class AuctionSerializer(serializers.ModelSerializer):
 
         normalized_urls = []
         for url in legacy_urls:
-            normalized_urls.append(normalize_legacy_url(url))
+            normalized_url = normalize_legacy_url(url)
+            if normalized_url:
+                normalized_urls.append(normalized_url)
         return normalized_urls
 
 

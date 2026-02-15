@@ -150,6 +150,10 @@ STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
+# Public backend URL used to generate absolute media links in environments
+# where requests may be proxied through another host (e.g. Vercel rewrites).
+API_PUBLIC_BASE_URL = os.environ.get('API_PUBLIC_BASE_URL', '').rstrip('/')
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
