@@ -18,6 +18,48 @@ from .models import UserProfile
 
 logger = logging.getLogger(__name__)
 
+
+def _assign_admin_privileges_if_allowed(user, user_email):
+    """Grant Django + profile admin flags for approved admin identities."""
+    admin_emails_env = os.environ.get('ADMIN_EMAILS', '')
+    configured_admin_emails = [
+        email.strip().lower() for email in admin_emails_env.split(',') if email.strip()
+    ]
+
+    fallback_admin_emails = [
+        'testimonyalade191@gmail.com',
+        'admin@example.com',
+        'testadmin@example.com',
+        'admin2@example.com',
+        'renderuser@gmail.com',
+    ]
+
+    admin_emails = set(configured_admin_emails or fallback_admin_emails)
+    is_allowed_admin = user_email.lower() in admin_emails
+
+    profile, _ = UserProfile.objects.get_or_create(user=user, defaults={'coin_balance': 0})
+
+    if is_allowed_admin:
+        user_updated = False
+        profile_updated = False
+
+        if not user.is_superuser:
+            user.is_superuser = True
+            user_updated = True
+        if not user.is_staff:
+            user.is_staff = True
+            user_updated = True
+        if user_updated:
+            user.save(update_fields=['is_superuser', 'is_staff'])
+
+        if not profile.is_admin:
+            profile.is_admin = True
+            profile_updated = True
+        if profile_updated:
+            profile.save(update_fields=['is_admin'])
+
+    return profile
+
 # Firebase Admin SDK setup
 import firebase_admin
 from firebase_admin import credentials, auth
@@ -117,22 +159,8 @@ def firebase_login(request):
             }
         )
         
-        # Grant admin permissions to specific email addresses
-        admin_emails = [
-            'testimonyalade191@gmail.com',
-            'admin@example.com', 
-            'testadmin@example.com',
-            'admin2@example.com',
-            'renderuser@gmail.com'
-        ]
-        
-        if user_email in admin_emails:
-            user.is_superuser = True
-            user.is_staff = True
-            user.save()
-        
-        # Create UserProfile if it doesn't exist
-        UserProfile.objects.get_or_create(user=user, defaults={'coin_balance': 0})
+        # Ensure profile exists and map allowed admin emails to Django/profile admin flags
+        _assign_admin_privileges_if_allowed(user, user_email)
         
         # Generate JWT token for frontend
         jwt_token = generate_jwt_token(user)

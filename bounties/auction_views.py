@@ -30,6 +30,20 @@ from .authentication import FirebaseAuthentication
 logger = logging.getLogger(__name__)
 
 
+def _has_admin_privileges(user):
+    """Return True if user should be treated as an admin."""
+    if not user or not getattr(user, 'is_authenticated', False):
+        return False
+
+    if user.is_superuser or user.is_staff:
+        return True
+
+    try:
+        return bool(user.profile.is_admin)
+    except UserProfile.DoesNotExist:
+        return False
+
+
 class AuctionListView(ListAPIView):
     """
     List all active auctions.
@@ -41,20 +55,12 @@ class AuctionListView(ListAPIView):
     def get_queryset(self):
         user = self.request.user
         now = timezone.now()
-        
-        # Debug logging
-        print(f"DEBUG: User: {user}")
-        print(f"DEBUG: User has profile: {hasattr(user, 'profile')}")
-        if hasattr(user, 'profile'):
-            print(f"DEBUG: User profile is_admin: {user.profile.is_admin}")
-        
-        if hasattr(user, 'profile') and user.profile.is_admin:
+
+        if _has_admin_privileges(user):
             # Admins see all auctions
-            print("DEBUG: Returning all auctions for admin")
             return Auction.objects.all().prefetch_related('images').order_by('-created_at')
         else:
             # Regular users see only active auctions
-            print("DEBUG: Returning active/upcoming auctions for regular user")
             return Auction.objects.filter(
                 Q(status='active') | Q(status='upcoming'),
                 starts_at__lte=now
@@ -80,18 +86,9 @@ class CreateAuctionView(APIView):
     
     def post(self, request):
         user = request.user
-        
-        # Ensure user profile is loaded
-        try:
-            user_profile = user.profile
-        except UserProfile.DoesNotExist:
-            return Response(
-                {'error': 'User profile not found'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
+
         # Check if user is admin
-        if not user_profile.is_admin:
+        if not _has_admin_privileges(user):
             return Response(
                 {'error': 'Admin privileges required'},
                 status=status.HTTP_403_FORBIDDEN
@@ -185,17 +182,8 @@ class DeleteAuctionView(APIView):
     def delete(self, request, auction_id):
         user = request.user
 
-        # Ensure user profile is loaded
-        try:
-            user_profile = user.profile
-        except UserProfile.DoesNotExist:
-            return Response(
-                {'error': 'User profile not found'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-
         # Check if user is admin
-        if not user_profile.is_admin:
+        if not _has_admin_privileges(user):
             return Response(
                 {'error': 'Admin privileges required'},
                 status=status.HTTP_403_FORBIDDEN
@@ -451,18 +439,9 @@ class AuctionStatusView(APIView):
     
     def patch(self, request, auction_id):
         user = request.user
-        
-        # Ensure user profile is loaded
-        try:
-            user_profile = user.profile
-        except UserProfile.DoesNotExist:
-            return Response(
-                {'error': 'User profile not found'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
+
         # Check if user is admin
-        if not user_profile.is_admin:
+        if not _has_admin_privileges(user):
             return Response(
                 {'error': 'Admin privileges required'},
                 status=status.HTTP_403_FORBIDDEN
@@ -523,18 +502,9 @@ class EndAuctionView(APIView):
     
     def post(self, request, auction_id):
         user = request.user
-        
-        # Ensure user profile is loaded
-        try:
-            user_profile = user.profile
-        except UserProfile.DoesNotExist:
-            return Response(
-                {'error': 'User profile not found'},
-                status=status.HTTP_403_FORBIDDEN
-            )
-        
+
         # Check if user is admin
-        if not user_profile.is_admin:
+        if not _has_admin_privileges(user):
             return Response(
                 {'error': 'Admin privileges required'},
                 status=status.HTTP_403_FORBIDDEN
