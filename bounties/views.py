@@ -156,6 +156,20 @@ class UserBountyClaimsView(generics.ListAPIView):
         return BountyClaim.objects.filter(user=self.request.user).select_related('bounty', 'user')
 
 
+class AdminBountyClaimsView(generics.ListAPIView):
+    """Admin-only endpoint to list all bounty claims across all users."""
+
+    serializer_class = BountyClaimSerializer
+    permission_classes = [permissions.IsAdminUser]
+
+    def get_queryset(self):
+        queryset = BountyClaim.objects.select_related('bounty', 'user').order_by('-submitted_at', '-created_at')
+        status_filter = self.request.query_params.get('status')
+        if status_filter:
+            queryset = queryset.filter(status=status_filter)
+        return queryset
+
+
 class BountyClaimApprovalView(APIView):
     permission_classes = [permissions.IsAdminUser]
 

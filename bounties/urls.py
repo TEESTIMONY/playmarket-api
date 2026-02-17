@@ -27,6 +27,7 @@ urlpatterns = [
     # Admin endpoints
     path('admin/users/', views.UserListView.as_view(), name='admin-users'),
     path('admin/adjust-balance/', views.AdminUserBalanceAdjustmentView.as_view(), name='admin-adjust-balance'),
+    path('admin/bounty-claims/', views.AdminBountyClaimsView.as_view(), name='admin-bounty-claims'),
     
     # Auction endpoints
     path('auctions/', auction_views.AuctionListView.as_view(), name='auction-list'),
