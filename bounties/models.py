@@ -51,6 +51,7 @@ class CoinTransaction(models.Model):
         ('bounty_reward', 'Bounty Reward'),
         ('code_redemption', 'Code Redemption'),
         ('admin_adjustment', 'Admin Adjustment'),
+        ('playengine_transfer', 'PlayEngine Transfer'),
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='coin_transactions')
@@ -70,6 +71,36 @@ class CoinTransaction(models.Model):
 
     def __str__(self):
         return f"{self.user.username}: {self.amount} coins ({self.transaction_type})"
+
+
+class PointTransfer(models.Model):
+    """Log of PlayEngine point transfer attempts initiated by authenticated users."""
+
+    STATUS_CHOICES = [
+        ('success', 'Success'),
+        ('failed', 'Failed'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='point_transfers')
+    email = models.EmailField(help_text="User email used for PlayEngine transfer")
+    amount = models.PositiveIntegerField(help_text="Transfer amount requested")
+    transfer_id = models.UUIDField(unique=True, help_text="Server-generated UUID sent to PlayEngine")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES)
+    playengine_error = models.CharField(max_length=100, blank=True)
+    playengine_response = models.JSONField(default=dict, blank=True)
+    credited_balance = models.IntegerField(null=True, blank=True, help_text="Local balance after credit on success")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'created_at']),
+            models.Index(fields=['transfer_id']),
+            models.Index(fields=['status']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.amount} ({self.status})"
 
 
 class Bounty(models.Model):

@@ -7,7 +7,7 @@ from django.shortcuts import redirect, render
 from django.db.models import Sum, Count
 from django.http import HttpResponse
 from django.utils.html import format_html
-from .models import UserProfile, CoinTransaction, Bounty, BountyClaim, RedeemCode, Auction, AuctionImage
+from .models import UserProfile, CoinTransaction, PointTransfer, Bounty, BountyClaim, RedeemCode, Auction, AuctionImage
 from .auction_models import AuctionBid, AuctionWinner
 
 
@@ -68,6 +68,47 @@ class CoinTransactionAdmin(admin.ModelAdmin):
     fieldsets = (
         ('Transaction Details', {
             'fields': ('user', 'amount', 'transaction_type', 'description', 'reference_id')
+        }),
+        ('Timestamps', {
+            'fields': ('created_at',),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(PointTransfer)
+class PointTransferAdmin(admin.ModelAdmin):
+    list_display = [
+        'user',
+        'email',
+        'amount',
+        'status',
+        'transfer_id',
+        'playengine_error',
+        'credited_balance',
+        'created_at',
+    ]
+    list_filter = ['status', 'created_at']
+    search_fields = ['user__username', 'user__email', 'transfer_id', 'playengine_error']
+    ordering = ['-created_at']
+    readonly_fields = [
+        'user',
+        'email',
+        'amount',
+        'status',
+        'transfer_id',
+        'playengine_error',
+        'playengine_response',
+        'credited_balance',
+        'created_at',
+    ]
+
+    fieldsets = (
+        ('Transfer Details', {
+            'fields': ('user', 'email', 'amount', 'status', 'transfer_id')
+        }),
+        ('Result', {
+            'fields': ('playengine_error', 'credited_balance', 'playengine_response')
         }),
         ('Timestamps', {
             'fields': ('created_at',),

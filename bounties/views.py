@@ -2,6 +2,7 @@ from rest_framework import generics, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.conf import settings
 from django.core.files.storage import default_storage
 from django.http import FileResponse, HttpResponseNotFound
 from django.shortcuts import get_object_or_404
@@ -10,13 +11,38 @@ from django.contrib.auth.models import User
 from django.db import transaction, models
 import mimetypes
 import os
-from .models import Bounty, BountyClaim, RedeemCode, UserProfile, CoinTransaction
+import uuid
+import logging
+import requests
+from .models import Bounty, BountyClaim, RedeemCode, UserProfile, CoinTransaction, PointTransfer
 from .serializers import (
     BountySerializer, BountyDetailSerializer,
     BountyClaimSerializer, BountyClaimCreateSerializer,
     BountySubmissionSerializer,
     RedeemCodeSerializer, RedeemCodeCreateSerializer, RedeemCodeRedeemSerializer
 )
+
+
+logger = logging.getLogger(__name__)
+
+
+def _normalize_playengine_error(error_value):
+    if not error_value:
+        return 'TRANSFER_FAILED'
+
+    raw = str(error_value).strip()
+    upper = raw.upper().replace(' ', '_')
+
+    if 'INSUFFICIENT' in upper:
+        return 'INSUFFICIENT_BALANCE'
+    if 'USER' in upper and 'NOT' in upper:
+        return 'USER_NOT_FOUND'
+    if 'DUPLICATE' in upper:
+        return 'DUPLICATE_TRANSFER'
+    if 'INVALID' in upper and 'AMOUNT' in upper:
+        return 'INVALID_AMOUNT'
+
+    return upper
 
 
 class BountyListView(generics.ListCreateAPIView):
@@ -296,6 +322,153 @@ class UserTransactionsView(generics.ListAPIView):
             'transactions': data,
             'count': len(data)
         })
+
+
+class PointTransferView(APIView):
+    """Initiate and list PlayEngine-backed point transfers for current user."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        transfers = PointTransfer.objects.filter(user=request.user).order_by('-created_at')[:50]
+        data = [
+            {
+                'id': tx.id,
+                'amount': tx.amount,
+                'status': tx.status,
+                'transfer_id': str(tx.transfer_id),
+                'error': tx.playengine_error,
+                'created_at': tx.created_at,
+                'credited_balance': tx.credited_balance,
+            }
+            for tx in transfers
+        ]
+        return Response({'transfers': data, 'count': len(data)})
+
+    def post(self, request):
+        if not settings.PLAYENGINE_API_KEY:
+            logger.error('PLAYENGINE_API_KEY missing in server configuration')
+            return Response(
+                {'success': False, 'error': 'TRANSFER_SERVICE_NOT_CONFIGURED'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        amount = request.data.get('amount')
+        try:
+            amount = int(amount)
+        except (TypeError, ValueError):
+            return Response(
+                {'success': False, 'error': 'INVALID_AMOUNT'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if amount <= 0:
+            return Response(
+                {'success': False, 'error': 'INVALID_AMOUNT'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # SECURITY: email is always taken from authenticated user, never trusted from client payload.
+        email = (request.user.email or '').strip()
+        if not email:
+            return Response(
+                {'success': False, 'error': 'EMAIL_NOT_AVAILABLE'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        transfer_id = uuid.uuid4()
+        payload = {
+            'email': email,
+            'amount': amount,
+            'transfer_id': str(transfer_id),
+        }
+        headers = {
+            'Content-Type': 'application/json',
+            'x-playshop-api-key': settings.PLAYENGINE_API_KEY,
+        }
+
+        try:
+            playengine_response = requests.post(
+                settings.PLAYENGINE_TRANSFER_URL,
+                headers=headers,
+                json=payload,
+                timeout=settings.PLAYENGINE_TIMEOUT_SECONDS,
+            )
+        except requests.RequestException as exc:
+            PointTransfer.objects.create(
+                user=request.user,
+                email=email,
+                amount=amount,
+                transfer_id=transfer_id,
+                status='failed',
+                playengine_error='TRANSFER_SERVICE_UNAVAILABLE',
+                playengine_response={'detail': str(exc)},
+            )
+            return Response(
+                {'success': False, 'error': 'TRANSFER_SERVICE_UNAVAILABLE'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        try:
+            playengine_data = playengine_response.json()
+        except ValueError:
+            playengine_data = {'raw_response': playengine_response.text}
+
+        is_success = bool(isinstance(playengine_data, dict) and playengine_data.get('success') is True)
+
+        if not is_success:
+            error_code = _normalize_playengine_error(
+                playengine_data.get('error') if isinstance(playengine_data, dict) else None
+            )
+            PointTransfer.objects.create(
+                user=request.user,
+                email=email,
+                amount=amount,
+                transfer_id=transfer_id,
+                status='failed',
+                playengine_error=error_code,
+                playengine_response=playengine_data if isinstance(playengine_data, dict) else {'raw_response': str(playengine_data)},
+            )
+            return Response(
+                {
+                    'success': False,
+                    'error': error_code,
+                    'transfer_id': str(transfer_id),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            profile, _ = UserProfile.objects.get_or_create(user=request.user)
+            new_balance = profile.add_coins(
+                amount,
+                'playengine_transfer',
+                transfer_id,
+                f'PlayEngine transfer {transfer_id}',
+            )
+
+            PointTransfer.objects.create(
+                user=request.user,
+                email=email,
+                amount=amount,
+                transfer_id=transfer_id,
+                status='success',
+                playengine_response=playengine_data if isinstance(playengine_data, dict) else {'raw_response': str(playengine_data)},
+                credited_balance=new_balance,
+            )
+
+        return Response(
+            {
+                'success': True,
+                'transferred': amount,
+                'transfer_id': str(transfer_id),
+                'playengine_remaining_balance': (
+                    playengine_data.get('remaining_balance') if isinstance(playengine_data, dict) else None
+                ),
+                'new_balance': new_balance,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class AdminUserBalanceAdjustmentView(APIView):

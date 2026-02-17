@@ -3,6 +3,7 @@ import jwt
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
 from django.contrib.auth.models import User
+from django.conf import settings
 
 
 def verify_jwt_token(token):
@@ -10,7 +11,7 @@ def verify_jwt_token(token):
     try:
         payload = jwt.decode(
             token, 
-            os.environ.get('SECRET_KEY', 'django-insecure-development-key-for-local-testing-only-not-for-production'), 
+            settings.SECRET_KEY,
             algorithms=['HS256']
         )
         user = User.objects.get(id=payload['user_id'])

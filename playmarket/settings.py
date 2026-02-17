@@ -30,6 +30,10 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-development-key-for-l
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True').lower() == 'true'
 
+# Fail fast in production if default insecure SECRET_KEY is still in use.
+if not DEBUG and SECRET_KEY.startswith('django-insecure-development-key-for-local-testing-only-not-for-production'):
+    raise ValueError('Insecure SECRET_KEY configured for production. Set a strong SECRET_KEY environment variable.')
+
 # Allowed hosts configuration
 ALLOWED_HOSTS_ENV = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1,play-market-updated-new.vercel.app')
 ALLOWED_HOSTS = [host.strip() for host in ALLOWED_HOSTS_ENV.split(',')]
@@ -154,6 +158,17 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # where requests may be proxied through another host (e.g. Vercel rewrites).
 API_PUBLIC_BASE_URL = os.environ.get('API_PUBLIC_BASE_URL', '').rstrip('/')
 
+# PlayEngine point transfer integration (server-to-server)
+PLAYENGINE_TRANSFER_URL = os.environ.get(
+    'PLAYENGINE_TRANSFER_URL',
+    'https://api.playenginecup.com/api/points/transfer',
+)
+PLAYENGINE_API_KEY = os.environ.get('PLAYENGINE_API_KEY', '').strip()
+try:
+    PLAYENGINE_TIMEOUT_SECONDS = int(os.environ.get('PLAYENGINE_TIMEOUT_SECONDS', '30'))
+except ValueError:
+    PLAYENGINE_TIMEOUT_SECONDS = 30
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
@@ -238,7 +253,10 @@ if not DEBUG:
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_SECONDS = 31536000
     SECURE_REDIRECT_EXEMPT = []
-    SECURE_SSL_REDIRECT = False  # Render handles SSL termination
+    # Keep HTTPS redirect on by default in production.
+    # If your platform already enforces redirects at the edge, you can set
+    # SECURE_SSL_REDIRECT=False explicitly via environment variable.
+    SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'True').lower() == 'true'
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     SECURE_HSTS_PRELOAD = True
     SESSION_COOKIE_SECURE = True

@@ -3,7 +3,7 @@ from .api_views import UserClaimedBountiesView, user_claimed_bounties_stats
 from .auth_views import firebase_login, verify_token, logout, get_user_profile
 from .views import (
     UserBalanceView, UserTransactionsView, AdminUserBalanceAdjustmentView,
-    UserDetailView, UserListView, BountyClaimApprovalView
+    UserDetailView, UserListView, BountyClaimApprovalView, PointTransferView
 )
 from .auction_views import (
     AuctionListView, AuctionDetailView, CreateAuctionView, DeleteAuctionView, PlaceBidView,
@@ -25,6 +25,7 @@ urlpatterns = [
     # User endpoints
     path('bounties/balance/', UserBalanceView.as_view(), name='user_balance'),
     path('bounties/transactions/', UserTransactionsView.as_view(), name='user_transactions'),
+    path('bounties/point-transfers/', PointTransferView.as_view(), name='user_point_transfers'),
     path('bounties/profile/', UserDetailView.as_view(), name='user_profile'),
     
     # Admin endpoints

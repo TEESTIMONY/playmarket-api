@@ -21,6 +21,7 @@ urlpatterns = [
     # User endpoints
     path('balance/', views.UserBalanceView.as_view(), name='user-balance'),
     path('transactions/', views.UserTransactionsView.as_view(), name='user-transactions'),
+    path('point-transfers/', views.PointTransferView.as_view(), name='point-transfers'),
     path('profile/', views.UserDetailView.as_view(), name='user-profile'),
     
     # Admin endpoints

@@ -30,15 +30,7 @@ def _assign_admin_privileges_if_allowed(user, user_email):
     if superuser_email:
         configured_admin_emails.append(superuser_email)
 
-    fallback_admin_emails = [
-        'testimonyalade191@gmail.com',
-        'admin@example.com',
-        'testadmin@example.com',
-        'admin2@example.com',
-        'renderuser@gmail.com',
-    ]
-
-    admin_emails = set(configured_admin_emails or fallback_admin_emails)
+    admin_emails = set(configured_admin_emails)
     is_allowed_admin = user_email.lower() in admin_emails
 
     # Also trust existing Django superusers/staff, or any existing superuser
@@ -136,7 +128,7 @@ def generate_jwt_token(user):
         'exp': datetime.utcnow() + timedelta(days=7),
         'iat': datetime.utcnow(),
     }
-    return jwt.encode(payload, os.environ.get('SECRET_KEY', 'django-insecure-development-key-for-local-testing-only-not-for-production'), algorithm='HS256')
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm='HS256')
 
 
 def verify_jwt_token(token):
@@ -144,7 +136,7 @@ def verify_jwt_token(token):
     try:
         payload = jwt.decode(
             token, 
-            os.environ.get('SECRET_KEY', 'django-insecure-development-key-for-local-testing-only-not-for-production'), 
+            settings.SECRET_KEY,
             algorithms=['HS256']
         )
         user = User.objects.get(id=payload['user_id'])
@@ -212,7 +204,9 @@ def firebase_login(request):
         return Response(error_payload, status=status.HTTP_400_BAD_REQUEST)
     except Exception as e:
         logger.exception(f"Firebase authentication failed: {str(e)}")
-        return Response({'error': f'Authentication failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        if settings.DEBUG:
+            return Response({'error': f'Authentication failed: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return Response({'error': 'Authentication service unavailable'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 @api_view(['POST'])
