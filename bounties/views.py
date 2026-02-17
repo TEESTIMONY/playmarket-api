@@ -26,6 +26,13 @@ from .serializers import (
 logger = logging.getLogger(__name__)
 
 
+class IsSuperUser(permissions.BasePermission):
+    """Allow access only to authenticated Django superusers."""
+
+    def has_permission(self, request, view):
+        return bool(request.user and request.user.is_authenticated and request.user.is_superuser)
+
+
 def _normalize_playengine_error(error_value):
     if not error_value:
         return 'TRANSFER_FAILED'
@@ -76,7 +83,7 @@ class BountyListView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [permissions.IsAdminUser()]
+            return [IsSuperUser()]
         return super().get_permissions()
 
 
@@ -87,7 +94,7 @@ class BountyDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_permissions(self):
         if self.request.method in ['PUT', 'PATCH', 'DELETE']:
-            return [permissions.IsAdminUser()]
+            return [IsSuperUser()]
         return super().get_permissions()
 
 
@@ -160,7 +167,7 @@ class AdminBountyClaimsView(generics.ListAPIView):
     """Admin-only endpoint to list all bounty claims across all users."""
 
     serializer_class = BountyClaimSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsSuperUser]
 
     def get_queryset(self):
         queryset = BountyClaim.objects.select_related('bounty', 'user').order_by('-submitted_at', '-created_at')
@@ -171,7 +178,7 @@ class AdminBountyClaimsView(generics.ListAPIView):
 
 
 class BountyClaimApprovalView(APIView):
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsSuperUser]
 
     def post(self, request, claim_id):
         claim = get_object_or_404(
@@ -212,7 +219,7 @@ class RedeemCodeListView(generics.ListCreateAPIView):
 
     def get_permissions(self):
         if self.request.method == 'POST':
-            return [permissions.IsAdminUser()]
+            return [IsSuperUser()]
         return super().get_permissions()
 
     def get_queryset(self):
@@ -226,7 +233,7 @@ class RedeemCodeListView(generics.ListCreateAPIView):
 class RedeemCodeDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = RedeemCode.objects.all()
     serializer_class = RedeemCodeSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsSuperUser]
 
 
 class RedeemCodeRedeemView(APIView):
@@ -489,7 +496,7 @@ class AdminUserBalanceAdjustmentView(APIView):
     """
     Admin endpoint to adjust user balances
     """
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsSuperUser]
 
     def post(self, request):
         user_id = request.data.get('user_id')
@@ -618,7 +625,7 @@ class UserListView(generics.ListAPIView):
     """
     Admin view to get all users with their profiles
     """
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsSuperUser]
 
     def get_queryset(self):
         return User.objects.all().select_related('profile')

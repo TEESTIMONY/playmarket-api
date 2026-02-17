@@ -189,7 +189,7 @@ def firebase_login(request):
                 'email': user.email,
                 'first_name': user.first_name,
                 'is_new': created,
-                'is_admin': bool(user.is_superuser or user.is_staff or getattr(profile, 'is_admin', False)),
+                'is_admin': bool(user.is_superuser),
             },
             'message': 'Login successful'
         })

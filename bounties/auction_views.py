@@ -49,25 +49,10 @@ def _get_admin_identity_allowlist():
 
 
 def _has_admin_privileges(user):
-    """Return True if user should be treated as an admin."""
+    """Return True only for authenticated Django superusers."""
     if not user or not getattr(user, 'is_authenticated', False):
         return False
-
-    if user.is_superuser or user.is_staff:
-        return True
-
-    admin_allowlist = _get_admin_identity_allowlist()
-    identity_candidates = {
-        (getattr(user, 'email', '') or '').strip().lower(),
-        (getattr(user, 'username', '') or '').strip().lower(),
-    }
-    if admin_allowlist and any(identity in admin_allowlist for identity in identity_candidates if identity):
-        return True
-
-    try:
-        return bool(user.profile.is_admin)
-    except UserProfile.DoesNotExist:
-        return False
+    return bool(user.is_superuser)
 
 
 class AuctionListView(ListAPIView):
